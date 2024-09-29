@@ -38,6 +38,9 @@ WORKDIR /root/
 # Copy the Go binary from the build stage
 COPY --from=build /app/tmp/main.exe .
 
+# Copy the public directory from the build stage to the final image
+COPY --from=build /app/public /public
+
 # Expose any necessary ports (if applicable, for web servers)
 EXPOSE 3000
 
