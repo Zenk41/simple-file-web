@@ -13,11 +13,12 @@ COPY go.mod go.sum ./
 # Download Go module dependencies
 RUN go mod download
 
-# Install `templ` tool for generating templates
+# Install templ tool for generating templates
 RUN go install github.com/a-h/templ/cmd/templ@latest
 
-# Install TailwindCSS and Flowbite globally
-RUN npm install -g tailwindcss flowbite
+# Install TailwindCSS and Flowbite as local project dependencies
+COPY package.json package-lock.json ./
+RUN npm install
 
 # Copy the rest of the application code
 COPY . .
