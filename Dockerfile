@@ -16,8 +16,8 @@ RUN go mod download
 # Install `templ` tool for generating templates
 RUN go install github.com/a-h/templ/cmd/templ@latest
 
-# Install TailwindCSS globally
-RUN npm install -g tailwindcss
+# Install TailwindCSS and Flowbite globally
+RUN npm install -g tailwindcss flowbite
 
 # Copy the rest of the application code
 COPY . .
