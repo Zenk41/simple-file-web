@@ -1,5 +1,5 @@
 # Use an official Go image as the base
-FROM golang:1.20-alpine AS build
+FROM golang:1.23-alpine AS build
 
 # Install necessary dependencies
 RUN apk add --no-cache nodejs npm bash
@@ -12,6 +12,9 @@ COPY go.mod go.sum ./
 
 # Download Go module dependencies
 RUN go mod download
+
+# Install `templ` tool for generating templates
+RUN go install github.com/a-h/templ/cmd/templ@latest
 
 # Install TailwindCSS globally
 RUN npm install -g tailwindcss
