@@ -1,0 +1,9 @@
+lib/
+node_modules/
+packages/*/LICENSE
+packages/*/README.md
+*.log
+
+bin
+*_templ.go
+tmp
