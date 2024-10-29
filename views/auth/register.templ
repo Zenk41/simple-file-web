@@ -1,0 +1,313 @@
+package views_auth
+
+import (
+	"github.com/Zenk41/simple-file-web/views/components"
+	"github.com/Zenk41/simple-file-web/views/layouts"
+)
+
+templ Register() {
+	@layouts.Base() {
+		@components.Header()
+		<main class="flex-grow max-w-4xl p-4 m-auto">
+			<div class="max-w-sm p-5 mx-auto bg-white border border-gray-200 rounded-lg shadow-md">
+				<h3 class="font-bold text-center text-md">Register Form</h3>
+				<form
+					x-data="{
+            fields: {
+							username: {
+								value: '',
+								loading: false,
+								valid: false,
+								error: '',
+								validate() {
+									this.loading = true;
+									setTimeout(() => {
+										if (this.value.length < 3 || this.value.length > 10) {
+											this.error = 'Username must be between 3 and 10 characters long.';
+											this.valid = false;
+										} else if (!/^[a-zA-Z0-9._-]+$/.test(this.value)) {
+											this.error = 'Username can only contain letters, numbers, dots, underscores, or hyphens.';
+											this.valid = false;
+										} else {
+											this.error = '';
+											this.valid = true;
+										}
+										this.loading = false;
+									}, 500);
+								}
+							},
+							email: {
+								value: '',
+								loading: false,
+								valid: false,
+								error: '',
+								validate() {
+									this.loading = true;
+									setTimeout(() => {
+										if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(this.value)) {
+											this.error = 'Please enter a valid email address';
+											this.valid = false;
+										} else {
+											this.error = '';
+											this.valid = true;
+										}
+										this.loading = false;
+									}, 500);
+								}
+							},
+							password: {
+								value: '',
+								loading: false,
+								valid: false,
+								error: '',
+								show: false,
+								validate() {
+									this.loading = true;
+									setTimeout(() => {
+										if (this.value.length < 8) {
+											this.error = 'Password must be at least 8 characters';
+											this.valid = false;
+										} else if (!/\d/.test(this.value)) {
+											this.error = 'Password must contain at least one number';
+											this.valid = false;
+										} else if (!/[A-Z]/.test(this.value)) {
+											this.error = 'Password must contain at least one uppercase letter';
+											this.valid = false;
+										} else {
+											this.error = '';
+											this.valid = true;
+										}
+										this.loading = false;
+										// Validate confirm password when password changes
+										if ($data.fields.confirmPassword.value) {
+											$data.fields.confirmPassword.validate();
+										}
+									}, 500);
+								}
+							},
+							confirmPassword: {
+								value: '',
+								loading: false,
+								valid: false,
+								error: '',
+								show: false,
+								validate() {
+									this.loading = true;
+									setTimeout(() => {
+										if (this.value !== $data.fields.password.value) {
+											this.error = 'The passwords do not match';
+											this.valid = false;
+										} else if (this.value.length < 8) {
+											this.error = 'Password must be at least 8 characters';
+											this.valid = false;
+										} else if (!/\d/.test(this.value)) {
+											this.error = 'Password must contain at least one number';
+											this.valid = false;
+										} else if (!/[A-Z]/.test(this.value)) {
+											this.error = 'Password must contain at least one uppercase letter';
+											this.valid = false;
+										} else {
+											this.error = '';
+											this.valid = true;
+										}
+										this.loading = false;
+									}, 500);
+								}
+							}
+						},
+						get isLoading() {
+								return Object.values(this.fields).some(field => field.loading);
+						},
+						get hasErrors() {
+								return Object.values(this.fields).some(field => field.error);
+						},
+						get isValid() {
+								return Object.values(this.fields).every(field => field.valid);
+						},
+        	}"
+					class="space-y-4"
+					@submit.prevent
+				>
+					<!-- Username Field -->
+					<div class="mb-6">
+						<label for="username" class="block mb-2 text-sm font-medium text-gray-900">
+							Username
+						</label>
+						<div class="relative">
+							<input
+								type="text"
+								id="username"
+								maxlength="10"
+								x-model="fields.username.value"
+								@input.debounce.1000ms="fields.username.validate()"
+								class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-black focus:border-black block w-full p-2.5 pr-10"
+								placeholder="zenk41"
+								required
+							/>
+							<div class="absolute transform -translate-y-1/2 right-2 top-1/2">
+								<div
+									x-show="fields.username.loading"
+									class="w-4 h-4 border-2 border-black rounded-full animate-spin border-t-transparent"
+								></div>
+								<span
+									x-show="!fields.username.loading && fields.username.valid"
+									class="text-xl text-green-500"
+								>✅</span>
+								<span
+									x-show="!fields.username.loading && fields.username.value && !fields.username.valid"
+									class="text-xl text-red-500"
+								>❌</span>
+							</div>
+						</div>
+						<div
+							x-show="fields.username.error"
+							x-text="fields.username.error"
+							class="mt-2 text-sm text-red-600"
+						></div>
+					</div>
+					<!-- Email Field -->
+					<div class="mb-6">
+						<label for="email" class="block mb-2 text-sm font-medium text-gray-900">
+							Email
+						</label>
+						<div class="relative">
+							<input
+								type="email"
+								id="email"
+								x-model="fields.email.value"
+								@input.debounce.1000ms="fields.email.validate()"
+								class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-black focus:border-black block w-full pl-2.5 pr-28 p-2.5"
+								placeholder="example@domain.com"
+								required
+							/>
+							<div class="absolute transform -translate-y-1/2 right-2 top-1/2">
+								<div
+									x-show="fields.email.loading"
+									class="w-4 h-4 border-2 border-black rounded-full animate-spin border-t-transparent"
+								></div>
+								<span
+									x-show="!fields.email.loading && fields.email.valid"
+									class="text-xl text-green-500"
+								>✅</span>
+								<span
+									x-show="!fields.email.loading && fields.email.value && !fields.email.valid"
+									class="text-xl text-red-500"
+								>❌</span>
+							</div>
+						</div>
+						<div
+							x-show="fields.email.error"
+							x-text="fields.email.error"
+							class="mt-2 text-sm text-red-600"
+						></div>
+					</div>
+					<!-- Password Field -->
+					<div class="mb-6">
+						<label for="password" class="block mb-2 text-sm font-medium text-gray-900">
+							Password
+						</label>
+						<div class="relative">
+							<!-- Input field -->
+							<input
+								:type="fields.password.show ? 'text' : 'password'"
+								id="password"
+								maxlength="10"
+								x-model="fields.password.value"
+								@input.debounce.1000ms="fields.password.validate()"
+								class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-black focus:border-black block w-full pl-2.5 pr-28 p-2.5"
+								placeholder="•••••••••"
+								required
+							/>
+							<!-- Right side indicator -->
+							<div class="absolute flex items-center -translate-y-1/2 right-12 top-1/2">
+								<div
+									x-show="fields.password.loading"
+									class="w-4 h-4 border-2 border-black rounded-full animate-spin border-t-transparent"
+								></div>
+								<span
+									x-show="!fields.password.loading && fields.password.valid"
+									class="text-xl text-green-500"
+								>✅</span>
+								<span
+									x-show="!fields.password.loading && fields.password.value && !fields.password.valid"
+									class="text-xl text-red-500"
+								>❌</span>
+							</div>
+							<!-- Right side unhide/hide button -->
+							<button
+								type="button"
+								@click="fields.password.show = !fields.password.show"
+								class="absolute p-1 -translate-y-1/2 rounded-full right-2 top-1/2 hover:bg-gray-100"
+							>
+								<span x-text="fields.password.show ? '🙈' : '👁️'" class="text-lg"></span>
+							</button>
+						</div>
+						<!-- Error message -->
+						<div
+							x-show="fields.password.error"
+							x-text="fields.password.error"
+							class="mt-2 text-sm text-red-600"
+						></div>
+					</div>
+					<!-- Confirm Password Field -->
+					<div class="mb-6">
+						<label for="confirmPassword" class="block mb-2 text-sm font-medium text-gray-900">
+							Confirm Password
+						</label>
+						<div class="relative">
+							<input
+								:type="fields.confirmPassword.show ? 'text' : 'password'"
+								id="confirmPassword"
+								maxlength="10"
+								x-model="fields.confirmPassword.value"
+								@input.debounce.1000ms="fields.confirmPassword.validate()"
+								class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-black focus:border-black block w-full p-2.5 pr-10"
+								placeholder="•••••••••"
+								required
+							/>
+							<button
+								type="button"
+								@click="fields.confirmPassword.show = !fields.confirmPassword.show"
+								class="absolute p-1 -translate-y-1/2 rounded-full right-2 top-1/2 hover:bg-gray-100"
+							>
+								<span x-text="fields.confirmPassword.show ? '🙈' : '👁️'" class="text-lg"></span>
+							</button>
+							<div class="absolute flex items-center -translate-y-1/2 right-12 top-1/2">
+								<div
+									x-show="fields.confirmPassword.loading"
+									class="w-4 h-4 border-2 border-black rounded-full animate-spin border-t-transparent"
+								></div>
+								<span
+									x-show="!fields.confirmPassword.loading && fields.confirmPassword.valid"
+									class="text-xl text-green-500"
+								>✅</span>
+								<span
+									x-show="!fields.confirmPassword.loading && fields.confirmPassword.value && !fields.confirmPassword.valid"
+									class="text-xl text-red-500"
+								>❌</span>
+							</div>
+						</div>
+						<div
+							x-show="fields.confirmPassword.error"
+							x-text="fields.confirmPassword.error"
+							class="mt-2 text-sm text-red-600"
+						></div>
+					</div>
+					<!-- Submit Button -->
+					<button
+						type="submit"
+						:disabled="isLoading || hasErrors || !isValid"
+						:class="{'opacity-50 cursor-not-allowed': isLoading || hasErrors || !isValid}"
+						class="w-full text-white bg-black hover:bg-gray-800 focus:ring-4 focus:outline-none focus:ring-gray-500 font-medium rounded-lg text-sm px-5 py-2.5"
+					>
+						<span x-show="!isLoading">Register</span>
+						<span x-show="isLoading" class="flex items-center justify-center">
+							<div class="w-4 h-4 mr-2 border-2 border-white rounded-full animate-spin border-t-transparent"></div>
+						</span>
+					</button>
+				</form>
+			</div>
+		</main>
+		@components.Footer()
+	}
+}

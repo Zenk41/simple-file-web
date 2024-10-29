@@ -9,15 +9,58 @@ templ Base() {
 			<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 			<link rel="stylesheet" href="/public/globals.css"/>
 			<script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
-			<script src="https://unpkg.com/alpinejs" defer></script>
-			<script src="https://unpkg.com/htmx.org@1.9.12/dist/htmx.min.js" defer></script>
-			<script src="https://unpkg.com/htmx.org@1.9.12/dist/ext/remove-me.js" defer></script>
+			<script src="/public/alpinejs" defer></script>
 			<script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/js/all.min.js"></script>
 			<script src="https://kit.fontawesome.com/f53f0c793d.js" crossorigin="anonymous"></script>
-      <script src="../../node_modules/flowbite/dist/flowbite.min.js"></script>
+			<script src="/public/flowbite.min.js" defer></script>
 		</head>
-		<body class="m-auto antialiased" hx-ext="remove-me">
-			{ children... }
+		<body class="flex flex-col min-h-screen antialiased" hx-ext="remove-me">
+			<div
+				x-data="{ loading: false, setLoading(value) { this.loading = value; } }"
+				@htmx:beforeSend.window="setLoading(true)"
+				@htmx:afterOnLoad.window="setLoading(false)"
+				@htmx:error.window="setLoading(false)"
+			>
+				<!-- Loading Overlay -->
+				<div
+					x-show="loading"
+					x-transition
+					class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50"
+				>
+					<div class="flex items-center p-4 space-x-3 bg-white rounded-lg shadow-lg">
+						<svg class="w-5 h-5 text-blue-500 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+							<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+							<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+						</svg>
+						<span>Loading...</span>
+					</div>
+				</div>
+				<!-- Page Content -->
+				<div class="flex flex-col min-h-screen">
+					{ children... }
+				</div>
+			</div>
+			<script>
+            document.addEventListener('alpine:init', () => {
+                document.addEventListener('click', e => {
+                    const link = e.target.closest('a[href]:not([hx-get]):not([hx-post])');
+                    if (link) {
+                        const alpineRoot = document.querySelector('[x-data]');
+                        if (alpineRoot && alpineRoot.__x && !e.ctrlKey && !e.shiftKey && !e.metaKey && !e.altKey) {
+                            alpineRoot.__x.$data.setLoading(true);
+                        }
+                    }
+                });
+            });
+
+            // Global function to set loading state
+            window.setGlobalLoading = function(value) {
+                const alpineRoot = document.querySelector('[x-data]');
+                if (alpineRoot && alpineRoot.__x) {
+                    alpineRoot.__x.$data.setLoading(value);
+                }
+            };
+        </script>
 		</body>
 	</html>
 }

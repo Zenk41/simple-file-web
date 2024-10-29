@@ -1,0 +1,754 @@
+package components
+
+import (
+	"path"
+	"strings"
+)
+
+func buildFullPath(dirs []string, endIndex int) string {
+	fullPath := ""
+	for i := 1; i <= endIndex; i++ {
+		fullPath += "/" + dirs[i]
+	}
+	return fullPath
+}
+
+templ BreadCrumb(dirs []string, comp templ.Component) {
+	<!-- Breadcrumb -->
+	<nav class="flex justify-between px-5 py-3 text-gray-700 border border-gray-200 rounded-lg bg-gray-50 dark:bg-gray-800 dark:border-gray-700" aria-label="Breadcrumb">
+		<ol class="inline-flex items-center space-x-1 md:space-x-2 rtl:space-x-reverse">
+			<li class="inline-flex items-center">
+				<a @click="loading = true" href={ templ.SafeURL("/b/" + dirs[0]) } class="inline-flex items-center text-sm font-medium text-gray-700 hover:text-blue-600 dark:text-gray-400 dark:hover:text-white">
+					<svg class="w-3 h-3 me-2.5" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 20 20">
+						<path d="m19.707 9.293-2-2-7-7a1 1 0 0 0-1.414 0l-7 7-2 2a1 1 0 0 0 1.414 1.414L2 10.414V18a2 2 0 0 0 2 2h3a1 1 0 0 0 1-1v-4a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v4a1 1 0 0 0 1 1h3a2 2 0 0 0 2-2v-7.586l.293.293a1 1 0 0 0 1.414-1.414Z"></path>
+					</svg>
+					{ dirs[0] }
+				</a>
+			</li>
+			if len(dirs) > 1 {
+				for i := 1; i < len(dirs); i++ {
+					if i == len(dirs)-1 {
+						<li aria-current="page">
+							<div class="flex items-center">
+								<svg class="w-3 h-3 mx-1 text-gray-400 rtl:rotate-180" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 6 10">
+									<path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m1 9 4-4-4-4"></path>
+								</svg>
+								<span class="text-sm font-medium text-gray-500 ms-1 md:ms-2 dark:text-gray-400">{ strings.ReplaceAll( dirs[i], "%20", " ") }</span>
+							</div>
+						</li>
+					} else {
+						<li>
+							<div class="flex items-center">
+								<svg class="block w-3 h-3 mx-1 text-gray-400 rtl:rotate-180" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 6 10">
+									<path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m1 9 4-4-4-4"></path>
+								</svg>
+								<a @click="loading = true" href={ templ.SafeURL("/b/" + dirs[0] + buildFullPath(dirs, i)) } class="text-sm font-medium text-gray-700 ms-1 hover:text-blue-600 md:ms-2 dark:text-gray-400 dark:hover:text-white">{ strings.ReplaceAll(dirs[i], "%20", " ") }</a>
+							</div>
+						</li>
+					}
+				}
+			}
+		</ol>
+		if len(dirs)  >= 1 {
+			@comp
+		}
+	</nav>
+}
+
+templ Folder(str, bucket string) {
+	<div
+		@contextmenu.prevent={ "selectFile('" + str + "', '" + bucket + "', 'folder'); showMenu = true; menuX = $event.pageX; menuY = $event.pageY" }
+		class="relative w-48 p-4 bg-white border border-gray-200 rounded-lg shadow-md cursor-pointer"
+	>
+		<div class="flex items-center space-x-2">
+			<svg class="w-6 h-6 text-yellow-500" fill="currentColor" viewBox="0 0 24 24">
+				<path d="M2.75 4C1.78 4 1 4.78 1 5.75V18.25C1 19.22 1.78 20 2.75 20H21.25C22.22 20 23 19.22 23 18.25V8.75C23 7.78 22.22 7 21.25 7H12.68L10.43 4.4C10.17 4.15 9.82 4 9.45 4H2.75ZM3 6H9.1L11.35 8.6C11.61 8.85 11.95 9 12.32 9H21V18H3V6Z"></path>
+			</svg>
+			<h5 class="text-lg font-medium text-gray-900">
+				<a @click="loading = true" href={ templ.SafeURL("/b/" + bucket + "/" + str) }>
+					{ strings.ReplaceAll(path.Base(str), "%20", " ") }
+				</a>
+			</h5>
+		</div>
+	</div>
+}
+
+templ File(str, bucket string) {
+	<div
+		@contextmenu.prevent={ "selectFile('" + str + "', '" + bucket + "', 'file'); showMenu = true; menuX = $event.pageX; menuY = $event.pageY" }
+		class="relative w-48 p-4 bg-white border border-gray-200 rounded-lg shadow-md cursor-pointer"
+	>
+		<div class="flex items-center space-x-2">
+			@getFileIcon(path.Ext(str))
+			<h5 class="text-lg font-medium text-gray-900">{ path.Base(str) }</h5>
+		</div>
+	</div>
+}
+
+templ ListObject(dirs []string, files []string, folders []string) {
+	<main class="flex-grow max-w-4xl p-4 m-auto ">
+		<div x-data="fileManager()" class="w-full p-4 bg-white border border-gray-200 rounded-lg shadow dark:bg-gray-800 dark:border-gray-700">
+			@BreadCrumb(dirs, Dropdown(dirs))
+			<div class="flex flex-wrap justify-center gap-4 py-4" x-data="{ showMenu: false, menuX: 0, menuY: 0 }">
+				<!-- File Elements -->
+				if len(files) > 0 {
+					for _, file := range files {
+						@File(file, dirs[0])
+					}
+				}
+				<!-- Folder Elements -->
+				if len(folders) > 0 {
+					for _, folder := range folders {
+						@Folder(folder, dirs[0])
+					}
+				}
+				<!-- Context Menu -->
+				<div
+					x-show="showMenu"
+					x-bind:style="{ top: menuY + 'px', left: menuX + 'px' }"
+					@click.away="showMenu = false"
+					class="absolute z-50 p-2 bg-white border border-gray-300 rounded-lg shadow-lg"
+				>
+					<ul>
+						<!-- Hide "Open" and "Download" if a folder is selected -->
+						<li x-show="selectedType === 'file'" @click="showMenu = false; downloadFile()" class="px-4 py-2 cursor-pointer hover:bg-gray-200">Download</li>
+						<li x-show="selectedType === 'file'" @click="showMenu = false; openPresignedUrl()" class="px-4 py-2 cursor-pointer hover:bg-gray-200">Open</li>
+						<li data-modal-target="rename-modal" data-modal-toggle="rename-modal" @click="showMenu = false; showRenameModal()" class="px-4 py-2 cursor-pointer hover:bg-gray-200">Rename</li>
+						<li
+							x-data="{ deleteInProgress: false }"
+							@click="
+								if (selectedBucket && selectedFile) {
+										deleteInProgress = true;
+										loading = true;  // Access the parent loading state
+										showMenu = false;
+										fetch(`/api/object?bucket=${selectedBucket}&path=${selectedFile}`, {
+												method: 'DELETE'
+										})
+										.then(response => response.json())
+										.then(data => {
+												deleteInProgress = false;
+												if (data.redirect) {
+														window.location.href = data.redirect;
+												} else {
+														loading = false;
+														window.location.reload();
+												}
+										})
+										.catch(error => {
+												deleteInProgress = false;
+												loading = false;
+												console.error('Delete failed:', error);
+												alert('Delete failed');
+										})
+								} else {
+										alert('Please select both bucket and file');
+								}"
+							class="px-4 py-2 cursor-pointer hover:bg-gray-200"
+							:class="{ 'opacity-50 cursor-not-allowed': deleteInProgress }"
+						>
+							<span x-show="!deleteInProgress">Delete</span>
+							<span x-show="deleteInProgress" class="flex items-center">
+								<svg class="inline w-4 h-4 mr-2 text-gray-700 animate-spin" fill="none" viewBox="0 0 24 24">
+									<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+									<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+								</svg>
+								Deleting...
+							</span>
+						</li>
+					</ul>
+				</div>
+			</div>
+			<div x-data={ "{ showModalUpload: false, fileName: '', selectedBucket: '" + dirs[0] + "', currentPath : '" + strings.TrimPrefix(buildFullPath(dirs, len(dirs)-1), "/") + "'}" } class="flex flex-col items-center justify-center">
+				<!-- Upload Button -->
+				<button
+					@click="showModalUpload = true"
+					class="flex items-center px-4 py-2 font-semibold text-gray-700 transition duration-200 ease-in-out border border-gray-300 rounded-lg hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-gray-300"
+				>
+					<span class="mr-2">📤</span> Upload Files
+				</button>
+				<!-- Modal Overlay -->
+				<div
+					x-show="showModalUpload"
+					x-transition.opacity
+					class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50"
+				>
+					<!-- Modal Content -->
+					<div
+						@click.away="closeModal()"
+						class="z-50 p-6 bg-white rounded-lg shadow-md dark:bg-gray-800 w-96"
+					>
+						<h2 class="mb-4 text-lg font-semibold text-gray-800 dark:text-gray-100">Upload Your Files</h2>
+						<!-- Upload Form -->
+						<form @submit.prevent="handleUpload" class="w-full">
+							<label
+								class="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
+								for="multiple_files"
+							>
+								Upload multiple files
+							</label>
+							<input
+								class="block w-full text-sm text-gray-900 border border-gray-300 rounded-lg cursor-pointer bg-gray-50 dark:text-gray-400 focus:outline-none dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400"
+								id="multiple_files"
+								type="file"
+								multiple
+								@change="handleFileSelect($event)"
+							/>
+							<!-- Selected Files Display -->
+							<div x-show="selectedFiles.length" class="mt-2">
+								<p class="text-sm text-gray-700 dark:text-gray-300">Selected Files:</p>
+								<template x-for="(file, index) in Array.from(selectedFiles)" :key="index">
+									<div class="flex items-center justify-between mt-1">
+										<span class="text-sm text-gray-600" x-text="file.name"></span>
+										<span
+											x-show="fileProgress[file.name]"
+											class="text-xs text-gray-500"
+											x-text="`${fileProgress[file.name]}%`"
+										></span>
+									</div>
+								</template>
+							</div>
+							<!-- Overall Progress -->
+							<div x-show="isUploading" class="mt-4">
+								<div class="w-full h-2 bg-gray-200 rounded-full">
+									<div
+										class="h-full transition-all duration-200 bg-blue-500 rounded-full"
+										:style="`width: ${totalProgress}%`"
+									></div>
+								</div>
+								<p
+									class="mt-1 text-sm text-gray-600 dark:text-gray-400"
+									x-text="`Overall progress: ${totalProgress}%`"
+								></p>
+							</div>
+							<!-- Submit Button -->
+							<button
+								type="submit"
+								:disabled="isUploading || !selectedFiles.length"
+								class="w-full px-4 py-2 mt-4 font-semibold text-gray-700 border border-gray-300 rounded hover:bg-gray-100 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
+							>
+								<span x-show="!isUploading">Confirm Upload</span>
+								<span x-show="isUploading">Uploading...</span>
+							</button>
+						</form>
+						<!-- Close Button -->
+						<button
+							@click="closeModal"
+							:disabled="isUploading"
+							class="w-full px-4 py-2 mt-2 font-semibold text-gray-700 border border-red-300 rounded hover:bg-red-100 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
+						>
+							Close
+						</button>
+					</div>
+				</div>
+			</div>
+			<div id="rename-modal" tabindex="-1" aria-hidden="true" class="hidden overflow-y-auto overflow-x-hidden fixed top-0 right-0 left-0 z-50 justify-center items-center w-full md:inset-0 h-[calc(100%-1rem)] max-h-full">
+				<div class="relative w-full max-w-md max-h-full p-4">
+					<div class="relative bg-white rounded-lg shadow dark:bg-gray-700">
+						<!-- Modal header -->
+						<div class="flex items-center justify-between p-4 border-b rounded-t md:p-5 dark:border-gray-600">
+							<h3 class="text-lg font-semibold text-gray-900 dark:text-white">Rename Item</h3>
+							<button type="button" class="inline-flex items-center justify-center w-8 h-8 text-sm text-gray-400 bg-transparent rounded-lg hover:bg-gray-200 hover:text-gray-900 ms-auto dark:hover:bg-gray-600 dark:hover:text-white" data-modal-toggle="rename-modal">
+								<svg class="w-3 h-3" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 14 14">
+									<path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m1 1 6 6m0 0 6 6M7 7l6-6M7 7l-6 6"></path>
+								</svg>
+								<span class="sr-only">Close modal</span>
+							</button>
+						</div>
+						<!-- Modal body -->
+						<div class="p-6 space-y-6">
+							<form id="renameForm" class="space-y-4">
+								<label for="newName" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">New Name</label>
+								<input type="text" id="newName" name="newName" class="block w-full p-2 text-gray-900 border border-gray-300 rounded-lg bg-gray-50 dark:text-white dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400" required/>
+								<button type="submit" class="w-full px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg dark:bg-blue-700 hover:bg-blue-700 dark:hover:bg-blue-800">Confirm Rename</button>
+							</form>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+		<script>
+			function fileManager() {
+					return {
+						selectedFile: '',
+						selectedBucket: '',
+						selectedType: '',
+						showMenu: false,
+						menuX: 0,
+						menuY: 0,
+						currentName: '',
+						selectedFiles: [],
+						isUploading: false,
+						totalProgress: 0,
+						fileProgress: {},
+						currentPath: '/',
+						showModalUpload: false,
+
+						init() {
+								this.$watch('isUploading', (value) => {
+										this.setGlobalLoading(value);
+								});
+						},
+
+						setGlobalLoading(value) {
+								const alpineRoot = document.querySelector('[x-data]');
+								if (alpineRoot && alpineRoot.__x) {
+										alpineRoot.__x.$data.loading = value;
+								}
+						},
+
+						handleFileSelect(event) {
+								this.selectedFiles = event.target.files;
+								this.fileProgress = {};
+								Array.from(this.selectedFiles).forEach(file => {
+										this.fileProgress[file.name] = 0;
+								});
+						},
+
+						handleUpload(event) {
+								event.preventDefault();
+								if (!this.selectedFiles.length) return;
+
+								this.isUploading = true;
+								loading = true;
+								const formData = new FormData();
+
+								Array.from(this.selectedFiles).forEach(file => {
+										formData.append('files', file);
+								});
+
+								formData.append('bucket', this.selectedBucket);
+								formData.append('path', this.currentPath);
+
+								const xhr = new XMLHttpRequest();
+								xhr.open('POST', '/api/upload', true);
+
+								xhr.upload.addEventListener('progress', (event) => {
+										if (event.lengthComputable) {
+												this.totalProgress = Math.round((event.loaded * 100) / event.total);
+										}
+								});
+
+								xhr.onload = () => {
+										if (xhr.status === 200) {
+												const response = JSON.parse(xhr.responseText);
+												console.log('Upload successful', response);
+												this.showModalUpload = false;
+												this.selectedFiles = [];
+												this.fileProgress = {};
+												this.totalProgress = 0;
+												
+												if (this.refreshFileList) {
+														this.refreshFileList();
+												}
+												
+												if (response.redirect) {
+														window.location.href = response.redirect;
+												} else {
+														window.location.reload();
+												}
+					
+										} else {
+												console.error('Upload failed', xhr.statusText);
+												this.handleError(`Upload failed: ${xhr.statusText}`);
+										}
+										this.isUploading = false;
+										closeModal()
+								};
+
+								xhr.onerror = () => {
+										console.error('Upload error', xhr.statusText);
+										this.handleError(`Upload error: ${xhr.statusText}`);
+										this.isUploading = false;
+								};
+
+								xhr.send(formData);
+						},
+
+						handleError(message) {
+								alert(`Upload failed: ${message}`);
+						},
+
+						closeModal() {
+								if (!this.isUploading) {
+										this.showModalUpload = false;
+										this.selectedFiles = [];
+										this.fileProgress = {};
+										this.totalProgress = 0;
+								}
+						},
+
+						selectFile(file, bucket, type = 'file') {
+								this.selectedFile = file;
+								this.selectedBucket = bucket;
+								this.selectedType = type;
+						},
+
+						initRenameModal() {
+								const modal = document.getElementById('rename-modal');
+								const form = document.getElementById('renameForm');
+								const input = document.getElementById('newName');
+
+								const currentName = this.selectedFile.split('/').filter(Boolean).pop();
+								input.value = currentName;
+
+								form.onsubmit = async (e) => {
+										e.preventDefault();
+										this.setGlobalLoading(true);
+
+										try {
+												const response = await fetch(`/api/object-rename?bucket=${encodeURIComponent(this.selectedBucket)}&path=${encodeURIComponent(this.selectedFile)}`, {
+														method: 'POST',
+														body: new FormData(form)
+												});
+
+												const data = await response.json();
+												
+												if (response.ok) {
+														modal.classList.add('hidden'); 
+														
+														if (data.redirect) {
+																window.location.href = data.redirect;
+														} else {
+																window.location.reload();
+														}
+												} else {
+														alert(data.error || 'Failed to rename item');
+												}
+										} catch (error) {
+												console.error('Rename failed:', error);
+												alert('Failed to rename item');
+										} finally {
+												this.setGlobalLoading(false);
+										}
+								};
+						},
+
+						showRenameModal() {
+								const modal = document.getElementById('rename-modal');
+								modal.classList.remove('hidden');
+								this.initRenameModal();
+						},
+
+						async downloadFile() {
+								if (this.selectedFile && this.selectedBucket) {
+										const url = `/api/download?bucket=${encodeURIComponent(this.selectedBucket)}&file=${encodeURIComponent(this.selectedFile)}`;
+										
+										try {
+												this.loading = true;
+												const response = await fetch(url);
+												
+												if (!response.ok) {
+														throw new Error(`HTTP error! status: ${response.status}`);
+												}
+												
+												const blob = await response.blob();
+												const filename = this.selectedFile.split('/').pop() || 'download';
+												
+												const link = document.createElement('a');
+												link.href = URL.createObjectURL(blob);
+												link.download = filename;
+												
+												document.body.appendChild(link);
+												link.click();
+												document.body.removeChild(link);
+
+												URL.revokeObjectURL(link.href);
+										} catch (error) {
+												console.error('Download failed:', error);
+												alert('Failed to download the file. Please try again.');
+										} finally {
+												this.loading = false;
+										}
+								}
+						},
+
+						openPresignedUrl() {
+								if (this.selectedFile && this.selectedBucket) {
+										const url = `/api/presigned-url?bucket=${encodeURIComponent(this.selectedBucket)}&file=${encodeURIComponent(this.selectedFile)}`;
+										console.log(url);
+										this.setGlobalLoading(true);
+										fetch(url)
+												.then((response) => response.json())
+												.then((data) => {
+														if (data.url) {
+																window.open(data.url, '_blank');
+														} else {
+																alert('Failed to get pre-signed URL');
+														}
+												})
+												.catch((error) => {
+														console.error('Error fetching pre-signed URL:', error);
+														alert('Failed to get pre-signed URL');
+												})
+												.finally(() => {
+														this.setGlobalLoading(false);
+												});
+								}
+						},
+
+						async downloadZipFolder(bucket, filePath) {
+								const url = `/api/downloads?bucket=${encodeURIComponent(bucket)}&path=${encodeURIComponent(filePath)}`;
+
+								try {
+										this.loading = true; // Set loading to true when starting the download
+										const response = await fetch(url);
+
+										if (!response.ok) {
+												throw new Error(`Error: ${response.statusText}`);
+										}
+
+										const blob = await response.blob();
+
+										if (!blob || blob.size === 0) {
+												throw new Error("Downloaded file is empty.");
+										}
+
+										const link = document.createElement('a');
+										link.href = URL.createObjectURL(blob);
+										link.download = `download${filePath}.zip`;
+										document.body.appendChild(link);
+										link.click();
+										document.body.removeChild(link);
+
+										URL.revokeObjectURL(link.href);
+
+										alert('Download successful!');
+								} catch (error) {
+										console.error('Download failed:', error);
+										alert('Failed to download the ZIP file. Please try again.');
+								} finally {
+										this.loading = false; // Set loading back to false when the download is complete
+								}
+						}
+				};
+		}
+			document.body.addEventListener('htmx:afterRequest', function (event) {
+						// Check if the request was successful
+						if (event.detail.xhr.status === 200) {
+								const response = JSON.parse(event.detail.xhr.responseText);
+								if (response.redirect) {
+										window.location.href = response.redirect; // Redirect
+								}
+						}
+						
+				});
+</script>
+	</main>
+}
+
+templ Dropdown(dirs []string) {
+	<div x-data="fileManager()">
+		<button id="dropdownHoverButton" data-dropdown-toggle="dropdownHover" data-dropdown-trigger="hover" class="inline-flex items-center px-3 py-2 text-lg font-medium text-gray-800 transition duration-150 ease-in-out dark:text-gray-200" type="button">
+			☰
+		</button>
+		<!-- Dropdown menu -->
+		<div id="dropdownHover" class="z-10 hidden transition-opacity duration-300 ease-in-out bg-white divide-y divide-gray-100 rounded-lg shadow-lg w-44 dark:bg-gray-800">
+			<ul class="py-2 text-sm text-gray-700 dark:text-gray-200" aria-labelledby="dropdownHoverButton">
+				<li>
+					<a
+						@click={ "downloadZipFolder('" + dirs[0] + "', '" + strings.TrimPrefix(buildFullPath(dirs, len(dirs)-1), "/") + "/')" }
+						:class="{ 'cursor-not-allowed opacity-50': loading }"
+						class="block px-4 py-2 transition-colors duration-200 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 dark:hover:text-white"
+					>
+						<span x-show="!loading">Download Folder</span>
+						<span x-show="loading">Downloading...</span>
+					</a>
+				</li>
+				// <li>
+				// 	<a data-modal-target="crud-modal" data-modal-toggle="crud-modal" class="block px-4 py-2 transition-colors duration-200 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 dark:hover:text-white">Create Folder</a>
+				// </li>
+				<li>
+					<a data-modal-target="crud-modal" data-modal-toggle="crud-modal" class="block px-4 py-2 transition-colors duration-200 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 dark:hover:text-white">Create Folder</a>
+				</li>
+			</ul>
+		</div>
+		@CreateFolderModal(dirs[0], strings.TrimPrefix(buildFullPath(dirs, len(dirs)-1), "/"))
+		// <div id="crud-modal" tabindex="-1" aria-hidden="true" class="hidden overflow-y-auto overflow-x-hidden fixed top-0 right-0 left-0 z-50 justify-center items-center w-full md:inset-0 h-[calc(100%-1rem)] max-h-full">
+		// 	<div class="relative w-full max-w-md max-h-full p-4">
+		// 		<!-- Modal content -->
+		// 		<div class="relative bg-white rounded-lg shadow dark:bg-gray-700">
+		// 			<!-- Modal header -->
+		// 			<div class="flex items-center justify-between p-4 border-b rounded-t md:p-5 dark:border-gray-600">
+		// 				<h3 class="text-lg font-semibold text-gray-900 dark:text-white">
+		// 					Create New Folder
+		// 				</h3>
+		// 				<button type="button" class="inline-flex items-center justify-center w-8 h-8 text-sm text-gray-400 bg-transparent rounded-lg hover:bg-gray-200 hover:text-gray-900 ms-auto dark:hover:bg-gray-600 dark:hover:text-white" data-modal-toggle="crud-modal">
+		// 					<svg class="w-3 h-3" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 14 14">
+		// 						<path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m1 1 6 6m0 0 6 6M7 7l6-6M7 7l-6 6"></path>
+		// 					</svg>
+		// 					<span class="sr-only">Close modal</span>
+		// 				</button>
+		// 			</div>
+		// 			<!-- Modal body -->
+		// 			<form hx-post={ "/api/folders?bucket=" + dirs[0] + "&path=" + strings.TrimPrefix(buildFullPath(dirs, len(dirs)-1), "/") } hx-target="#response-message" hx-swap="innerHTML" class="p-4 md:p-5">
+		// 				<div class="grid grid-cols-2 gap-4 mb-4">
+		// 					<div class="col-span-2">
+		// 						<label for="name" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Folder Name</label>
+		// 						<input type="text" name="name" id="name" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary-600 focus:border-primary-600 block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-500 dark:focus:border-primary-500" placeholder="Type folder name" required/>
+		// 					</div>
+		// 					<div class="col-span-2">
+		// 						<label for="description" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Folder Description</label>
+		// 						<textarea name="description" id="description" rows="4" class="block p-2.5 w-full text-sm text-gray-900 bg-gray-50 rounded-lg border border-gray-300 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500" placeholder="Write folder description here"></textarea>
+		// 					</div>
+		// 				</div>
+		// 				<button type="submit" class="text-white inline-flex items-center bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800">
+		// 					<svg class="w-5 h-5 me-1 -ms-1" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+		// 						<path fill-rule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clip-rule="evenodd"></path>
+		// 					</svg>
+		// 					Create New Folder
+		// 				</button>
+		// 				<!-- Response message container -->
+		// 				<div id="response-message" class="mt-4"></div>
+		// 			</form>
+		// 		</div>
+		// 	</div>
+		// </div>
+	</div>
+}
+
+templ getFileIcon(extension string) {
+	switch strings.ToLower(extension) {
+		case ".txt", ".log", ".md":
+			// Text files
+			<i class="text-2xl text-purple-400 fas fa-file-alt"></i>
+			// Document files
+		case ".pdf":
+			<i class="text-2xl text-red-600 fas fa-file-pdf"></i>
+		case ".doc", ".docx":
+			<i class="text-2xl text-blue-600 fas fa-file-word"></i>
+		case ".xls", ".xlsx":
+			<i class="text-2xl text-green-600 fas fa-file-excel"></i>
+		case ".ppt", ".pptx":
+			<i class="text-2xl text-orange-500 fas fa-file-powerpoint"></i>
+			// Image files
+		case ".jpg", ".jpeg", ".png", ".gif", ".bmp", ".tiff", ".webp":
+			<i class="text-2xl text-pink-500 fas fa-file-image"></i>
+			// Video files
+		case ".mp4", ".avi", ".mov", ".wmv", ".flv", ".webm", ".mkv", ".m4v", ".mpeg", ".mpg", ".3gp":
+			<i class="text-2xl text-blue-500 fas fa-file-video"></i>
+			// Audio files
+		case ".mp3", ".wav", ".ogg", ".flac", ".aac", ".wma", ".m4a":
+			<i class="text-2xl text-yellow-600 fas fa-file-audio"></i>
+			// Archive files
+		case ".zip", ".rar", ".7z", ".tar", ".gz", ".bz2":
+			<i class="text-2xl fas fa-file-archive text-brown-600"></i>
+			// Code files
+		case ".html", ".css", ".js", ".jsx", ".ts", ".tsx", ".php", ".py", ".java", ".cpp", ".c", ".cs", ".go", ".rb", ".swift":
+			<i class="text-2xl text-green-500 fas fa-file-code"></i>
+			// Database files
+		case ".sql", ".db", ".sqlite", ".mdb":
+			<i class="text-2xl text-indigo-600 fas fa-database"></i>
+			// Font files
+		case ".ttf", ".otf", ".woff", ".woff2":
+			<i class="text-2xl text-teal-500 fas fa-font"></i>
+			// Executable files
+		case ".exe", ".app", ".bat", ".sh":
+			<i class="text-2xl text-gray-700 fas fa-cog"></i>
+			// Default for unknown file types
+		default:
+			<i class="text-2xl text-gray-400 fas fa-file"></i>
+	}
+}
+
+// CreateFolderModal
+// to use it :
+// 	<li></li>
+// 		<a data-modal-target="crud-modal" data-modal-toggle="crud-modal" class="block px-4 py-2 transition-colors duration-200 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 dark:hover:text-white">Create Folder</a>
+// 	</li>
+// 	@CreateFolder(dirs[0], strings.TrimPrefix(buildFullPath(dirs, len(dirs)-1), "/"))
+templ CreateFolderModal(bucket, path string) {
+	<div id="crud-modal" x-data={ "folderModal({bucket: '" + bucket + "', path: '" + path + "' })" } tabindex="-1" aria-hidden="true" class="hidden overflow-y-auto overflow-x-hidden fixed top-0 right-0 left-0 z-50 justify-center items-center w-full md:inset-0 h-[calc(100%-1rem)] max-h-full">
+		<div class="relative w-full max-w-md max-h-full p-4">
+			<!-- Modal content -->
+			<div class="relative bg-white rounded-lg shadow dark:bg-gray-700">
+				<!-- Modal header -->
+				<div class="flex items-center justify-between p-4 border-b rounded-t md:p-5 dark:border-gray-600">
+					<h3 class="text-lg font-semibold text-gray-900 dark:text-white">
+						Create New Folder
+					</h3>
+					<button type="button" class="inline-flex items-center justify-center w-8 h-8 text-sm text-gray-400 bg-transparent rounded-lg hover:bg-gray-200 hover:text-gray-900 ms-auto dark:hover:bg-gray-600 dark:hover:text-white" data-modal-toggle="crud-modal">
+						<svg class="w-3 h-3" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 14 14">
+							<path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m1 1 6 6m0 0 6 6M7 7l6-6M7 7l-6 6"></path>
+						</svg>
+						<span class="sr-only">Close modal</span>
+					</button>
+				</div>
+				<!-- Modal body -->
+				<form @submit.prevent="createFolder" class="p-4 md:p-5">
+					<div class="grid grid-cols-2 gap-4 mb-4">
+						<div class="col-span-2">
+							<label for="name" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Folder Name</label>
+							<input type="text" x-model="name" id="name" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary-600 focus:border-primary-600 block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-500 dark:focus:border-primary-500" placeholder="Type folder name" required/>
+						</div>
+						<div class="col-span-2">
+							<label for="description" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Folder Description</label>
+							<textarea x-model="description" id="description" rows="4" class="block p-2.5 w-full text-sm text-gray-900 bg-gray-50 rounded-lg border border-gray-300 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500" placeholder="Write folder description here"></textarea>
+						</div>
+					</div>
+					<button type="submit" class="text-white inline-flex items-center bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800">
+						<span x-show="!loading">Create New Folder</span>
+						<span x-show="loading">Creating...</span>
+					</button>
+					<!-- Response message container -->
+					<div x-text="responseMessage" class="mt-4"></div>
+				</form>
+			</div>
+		</div>
+	</div>
+	<script>
+  function folderModal({ bucket, path }) {
+    return {
+        name: '',
+        description: '',
+        responseMessage: '',
+        createFolder() {
+					const modal = document.getElementById('crud-modal')
+					const fModal = new Modal(modal, {
+						onHide: () => {
+							return false;
+						}
+					})
+						loading = true;
+						const formData = new FormData();
+						formData.append('name', this.name);
+						formData.append('description', this.description);
+						
+
+            // Ensure name and description are not empty
+            if (!this.name) {
+                this.responseMessage = "Folder name cannot be empty.";
+                return; // Stop if name is empty
+            }
+ 	
+       
+
+            const url = `/api/folders?bucket=${bucket}&path=${path}`;
+
+            fetch(url, {
+                method: 'POST',
+        				body: formData
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                return response.json();
+            })
+            .then(() => {
+								loading = false;
+                this.responseMessage = 'Folder created successfully!';
+                this.name = '';
+                this.description = '';
+								window.location.reload(); 
+            })
+            .catch((error) => {
+															loading = false;
+          
+
+                this.responseMessage = `Error: ${error.message}`;
+            });
+        }
+    }
+}
+</script>
+}
