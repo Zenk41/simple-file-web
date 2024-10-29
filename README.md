@@ -1,4 +1,3 @@
-
 # Simple File Web
 
 A simple web application built using Go Fiber, HTMX, and Alpine.js for managing files, integrated with Garage S3 storage. This project allows users to upload, view, and delete files with a lightweight frontend experience using minimal JavaScript.
@@ -19,7 +18,6 @@ A simple web application built using Go Fiber, HTMX, and Alpine.js for managing 
 
 ### Frontend
 
-- **HTMX**: Enables dynamic interactions without relying on heavy JavaScript frameworks.
 - **Alpine.js**: Lightweight and reactive library for adding simple interactivity.
 
 ### Storage
@@ -30,11 +28,22 @@ A simple web application built using Go Fiber, HTMX, and Alpine.js for managing 
 
 Ensure the following environment variables are set in your `.env` file or exported in your shell:
 
+###### For CMD
+
 ```bash
-export S3_ACCESS_KEY_ID=your_access_key_id
-export S3_SECRET_ACCESS_KEY=your_secret_access_key
-export S3_BUCKET_NAME=your_bucket_name
-export AWS_REGION=your_bucket_region
+export APP_ENV=development
+export PORT=3000
+export ORIGIN_URL=*
+export DOWNLOAD_URL_EXPIRATION=3600
+```
+
+###### For Powershell
+
+```powershell
+$env:APP_ENV="development"
+$env:PORT="3000"
+$env:Alloworigin="*"
+$env:DOWNLOAD_URL_EXPIRATION="3600"
 ```
 
 ## Run with Docker
