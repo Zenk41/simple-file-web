@@ -13,120 +13,155 @@ templ Register() {
 				<h3 class="font-bold text-center text-md">Register Form</h3>
 				<form
 					x-data="{
-            fields: {
-							username: {
-								value: '',
-								loading: false,
-								valid: false,
-								error: '',
-								validate() {
-									this.loading = true;
-									setTimeout(() => {
-										if (this.value.length < 3 || this.value.length > 10) {
-											this.error = 'Username must be between 3 and 10 characters long.';
-											this.valid = false;
-										} else if (!/^[a-zA-Z0-9._-]+$/.test(this.value)) {
-											this.error = 'Username can only contain letters, numbers, dots, underscores, or hyphens.';
-											this.valid = false;
-										} else {
-											this.error = '';
-											this.valid = true;
-										}
-										this.loading = false;
-									}, 500);
-								}
-							},
-							email: {
-								value: '',
-								loading: false,
-								valid: false,
-								error: '',
-								validate() {
-									this.loading = true;
-									setTimeout(() => {
-										if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(this.value)) {
-											this.error = 'Please enter a valid email address';
-											this.valid = false;
-										} else {
-											this.error = '';
-											this.valid = true;
-										}
-										this.loading = false;
-									}, 500);
-								}
-							},
-							password: {
-								value: '',
-								loading: false,
-								valid: false,
-								error: '',
-								show: false,
-								validate() {
-									this.loading = true;
-									setTimeout(() => {
-										if (this.value.length < 8) {
-											this.error = 'Password must be at least 8 characters';
-											this.valid = false;
-										} else if (!/\d/.test(this.value)) {
-											this.error = 'Password must contain at least one number';
-											this.valid = false;
-										} else if (!/[A-Z]/.test(this.value)) {
-											this.error = 'Password must contain at least one uppercase letter';
-											this.valid = false;
-										} else {
-											this.error = '';
-											this.valid = true;
-										}
-										this.loading = false;
-										// Validate confirm password when password changes
-										if ($data.fields.confirmPassword.value) {
-											$data.fields.confirmPassword.validate();
-										}
-									}, 500);
-								}
-							},
-							confirmPassword: {
-								value: '',
-								loading: false,
-								valid: false,
-								error: '',
-								show: false,
-								validate() {
-									this.loading = true;
-									setTimeout(() => {
-										if (this.value !== $data.fields.password.value) {
-											this.error = 'The passwords do not match';
-											this.valid = false;
-										} else if (this.value.length < 8) {
-											this.error = 'Password must be at least 8 characters';
-											this.valid = false;
-										} else if (!/\d/.test(this.value)) {
-											this.error = 'Password must contain at least one number';
-											this.valid = false;
-										} else if (!/[A-Z]/.test(this.value)) {
-											this.error = 'Password must contain at least one uppercase letter';
-											this.valid = false;
-										} else {
-											this.error = '';
-											this.valid = true;
-										}
-										this.loading = false;
-									}, 500);
-								}
+          fields: {
+						username: {
+							value: '',
+							loading: false,
+							valid: false,
+							error: '',
+							validate() {
+								this.loading = true;
+								setTimeout(() => {
+									if (this.value.length < 3 || this.value.length > 10) {
+										this.error = 'Username must be between 3 and 10 characters long.';
+										this.valid = false;
+									} else if (!/^[a-zA-Z0-9._-]+$/.test(this.value)) {
+										this.error = 'Username can only contain letters, numbers, dots, underscores, or hyphens.';
+										this.valid = false;
+									} else {
+										this.error = '';
+										this.valid = true;
+									}
+									this.loading = false;
+								}, 500);
 							}
 						},
-						get isLoading() {
-								return Object.values(this.fields).some(field => field.loading);
+						email: {
+							value: '',
+							loading: false,
+							valid: false,
+							error: '',
+							validate() {
+								this.loading = true;
+								setTimeout(() => {
+									if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(this.value)) {
+										this.error = 'Please enter a valid email address';
+										this.valid = false;
+									} else {
+										this.error = '';
+										this.valid = true;
+									}
+									this.loading = false;
+								}, 500);
+							}
 						},
-						get hasErrors() {
-								return Object.values(this.fields).some(field => field.error);
+						password: {
+							value: '',
+							loading: false,
+							valid: false,
+							error: '',
+							show: false,
+							validate() {
+								this.loading = true;
+								setTimeout(() => {
+									if (this.value.length < 8) {
+										this.error = 'Password must be at least 8 characters';
+										this.valid = false;
+									} else if (!/\d/.test(this.value)) {
+										this.error = 'Password must contain at least one number';
+										this.valid = false;
+									} else if (!/[A-Z]/.test(this.value)) {
+										this.error = 'Password must contain at least one uppercase letter';
+										this.valid = false;
+									} else {
+										this.error = '';
+										this.valid = true;
+									}
+									this.loading = false;
+									if ($data.fields.confirmPassword.value) {
+										$data.fields.confirmPassword.validate();
+									}
+								}, 500);
+							}
 						},
-						get isValid() {
-								return Object.values(this.fields).every(field => field.valid);
-						},
-        	}"
+						confirmPassword: {
+							value: '',
+							loading: false,
+							valid: false,
+							error: '',
+							show: false,
+							validate() {
+								this.loading = true;
+								setTimeout(() => {
+									if (this.value !== $data.fields.password.value) {
+										this.error = 'The passwords do not match';
+										this.valid = false;
+									} else if (this.value.length < 8) {
+										this.error = 'Password must be at least 8 characters';
+										this.valid = false;
+									} else if (!/\d/.test(this.value)) {
+										this.error = 'Password must contain at least one number';
+										this.valid = false;
+									} else if (!/[A-Z]/.test(this.value)) {
+										this.error = 'Password must contain at least one uppercase letter';
+										this.valid = false;
+									} else {
+										this.error = '';
+										this.valid = true;
+									}
+									this.loading = false;
+								}, 500);
+							}
+						}
+					},
+					submitting: false,
+					submitError: '',
+					async handleSubmit() {
+						if (this.isLoading || this.hasErrors || !this.isValid) return;
+						
+						this.submitting = true;
+						this.submitError = '';
+						
+						try {
+							const response = await fetch('/api/auth/register', {
+								method: 'POST',
+								headers: {
+									'Content-Type': 'application/json',
+								},
+								body: JSON.stringify({
+									username: this.fields.username.value,
+									email: this.fields.email.value,
+									password: this.fields.password.value
+								})
+							});
+							
+							const data = await response.json();
+							
+							if (!response.ok) {
+								throw new Error(data.message || 'Registration failed');
+							}
+							
+							// Registration successful
+							window.location.href = '/login';  // Redirect to login page
+							
+						} catch (error) {
+							this.submitError = error.message || 'An error occurred during registration';
+						} finally {
+							this.submitting = false;
+						}
+					},
+					get isLoading() {
+							return Object.values(this.fields).some(field => field.loading) || this.submitting;
+					},
+					get hasErrors() {
+							return Object.values(this.fields).some(field => field.error);
+					},
+					get isValid() {
+							return Object.values(this.fields).every(field => field.valid);
+					},
+        }"
 					class="space-y-4"
-					@submit.prevent
+					@submit.prevent="handleSubmit"
 				>
 					<!-- Username Field -->
 					<div class="mb-6">
@@ -207,7 +242,6 @@ templ Register() {
 							Password
 						</label>
 						<div class="relative">
-							<!-- Input field -->
 							<input
 								:type="fields.password.show ? 'text' : 'password'"
 								id="password"
@@ -218,7 +252,6 @@ templ Register() {
 								placeholder="•••••••••"
 								required
 							/>
-							<!-- Right side indicator -->
 							<div class="absolute flex items-center -translate-y-1/2 right-12 top-1/2">
 								<div
 									x-show="fields.password.loading"
@@ -233,7 +266,6 @@ templ Register() {
 									class="text-xl text-red-500"
 								>❌</span>
 							</div>
-							<!-- Right side unhide/hide button -->
 							<button
 								type="button"
 								@click="fields.password.show = !fields.password.show"
@@ -242,7 +274,6 @@ templ Register() {
 								<span x-text="fields.password.show ? '🙈' : '👁️'" class="text-lg"></span>
 							</button>
 						</div>
-						<!-- Error message -->
 						<div
 							x-show="fields.password.error"
 							x-text="fields.password.error"
@@ -293,6 +324,12 @@ templ Register() {
 							class="mt-2 text-sm text-red-600"
 						></div>
 					</div>
+					<!-- Submit Error Message -->
+					<div
+						x-show="submitError"
+						x-text="submitError"
+						class="p-3 mb-4 text-sm text-red-700 bg-red-100 rounded-lg"
+					></div>
 					<!-- Submit Button -->
 					<button
 						type="submit"
@@ -300,9 +337,10 @@ templ Register() {
 						:class="{'opacity-50 cursor-not-allowed': isLoading || hasErrors || !isValid}"
 						class="w-full text-white bg-black hover:bg-gray-800 focus:ring-4 focus:outline-none focus:ring-gray-500 font-medium rounded-lg text-sm px-5 py-2.5"
 					>
-						<span x-show="!isLoading">Register</span>
-						<span x-show="isLoading" class="flex items-center justify-center">
+						<span x-show="!submitting">Register</span>
+						<span x-show="submitting" class="flex items-center justify-center">
 							<div class="w-4 h-4 mr-2 border-2 border-white rounded-full animate-spin border-t-transparent"></div>
+							Registering...
 						</span>
 					</button>
 				</form>
