@@ -8,54 +8,218 @@ import (
 templ Login() {
 	@layouts.Base() {
 		@components.Header()
-		<main class="p-6">
+		<main class="flex-grow max-w-4xl p-4 m-auto">
 			<div class="max-w-sm p-5 mx-auto bg-white border border-gray-200 rounded-lg shadow-md">
 				<h3 class="text-lg font-bold text-center">Login Form</h3>
-				<form hx-post="/login" hx-swap="outerHTML" class="space-y-4">
+				<form
+					x-data="{
+							formData: {
+									email: '',
+									password: ''
+							},
+							showPassword: false,
+							loading: false,
+							errors: {
+									email: '',
+									password: ''
+							},
+							validation: {
+									email: false,
+									password: false
+							},
+							async validateEmail() {
+									this.loading = true;
+									const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+									
+									if (!this.formData.email) {
+											this.errors.email = 'Email is required';
+											this.validation.email = false;
+									} else if (!emailRegex.test(this.formData.email)) {
+											this.errors.email = 'Please enter a valid email address';
+											this.validation.email = false;
+									} else {
+											this.errors.email = '';
+											this.validation.email = true;
+									}
+									
+									await new Promise(resolve => setTimeout(resolve, 500));
+									this.loading = false;
+							},
+							validatePassword() {
+									const password = this.formData.password;
+									if (!password) {
+											this.errors.password = 'Password is required';
+											this.validation.password = false;
+											return;
+									}
+									
+									const validations = [
+											{ test: (p) => p.length >= 8, message: 'Password must be at least 8 characters' },
+											{ test: (p) => /\d/.test(p), message: 'Password must contain at least one number' },
+											{ test: (p) => /[A-Z]/.test(p), message: 'Password must contain at least one uppercase letter' },
+											// { test: (p) => /[!@#$%^&*]/.test(p), message: 'Password must contain at least one special character' }
+									];
+
+									const failedValidation = validations.find(v => !v.test(password));
+									
+									if (failedValidation) {
+											this.errors.password = failedValidation.message;
+											this.validation.password = false;
+									} else {
+											this.errors.password = '';
+											this.validation.password = true;
+									}
+							},
+							isFormValid() {
+									return this.validation.email && 
+													this.validation.password && 
+													!this.loading;
+							},
+							async submitForm() {
+									if (!this.isFormValid()) return;
+									
+									this.loading = true;
+									try {
+											const response = await fetch('/api/auth/login', {
+													method: 'POST',
+													headers: {
+															'Content-Type': 'application/json',
+													},
+													body: JSON.stringify({
+															email: this.formData.email,
+															password: this.formData.password
+													})
+											});
+
+											const data = await response.json();
+											
+											if (!response.ok) throw new Error(data.message || 'Login failed');
+											
+											// Success handling
+											window.location.href = data.redirect || '/dashboard';
+									} catch (error) {
+											console.error('Login error:', error);
+											// Show error in UI
+											this.$dispatch('show-toast', { 
+													message: error.message,
+													type: 'error'
+											});
+									} finally {
+											this.loading = false;
+									}
+							}
+					}"
+					@submit.prevent="submitForm()"
+					class="space-y-4"
+				>
+					<!-- Email Field -->
 					<div class="mb-6">
-						<label for="email" class="block mb-2 text-sm font-medium text-gray-900">Email</label>
-						<input
-							type="text"
-							id="email"
-							name="email"
-							class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5"
-							placeholder="example@domain.com"
-							hx-post="/validate/email"
-							hx-indicator="#indEmail"
-							hx-target="#email-status"
-							hx-trigger="keyup changed delay:1s"
-							required
-						/>
-						<span id="indEmail" class="htmx-indicator loading loading-spinner loading-sm"></span>
-						<div id="email-status"></div>
-					</div>
-					<div class="relative mb-6" x-data="{ show: false }">
-						<label for="password" class="block mb-2 text-sm font-medium text-gray-900">Password</label>
-						<div class="flex content-center">
+						<label for="email" class="block mb-2 text-sm font-medium text-gray-900">
+							Email
+						</label>
+						<div class="relative">
 							<input
-								hx-trigger="keyup changed delay:1s"
-								:type="show ? 'text' : 'password'"
-								id="password"
-								name="password"
-								class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 pr-10"
-								placeholder="•••••••••"
-								hx-post="/validate/password"
-								hx-target="#password-status"
-								hx-swap="outerHTML"
+								type="email"
+								id="email"
+								name="email"
+								x-model="formData.email"
+								@input.debounce.500ms="validateEmail()"
+								@blur="validateEmail()"
+								class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-black focus:border-black block w-full p-2.5 pr-10"
+								:class="{'border-red-500': errors.email}"
+								placeholder="example@domain.com"
 								required
 							/>
-							<button type="button" @click="show = !show" class="absolute inset-y-0 right-0 flex items-end justify-center">
-								<span x-text="show ? '🙈' : '👁️'" class="h-full"></span>
+							<div class="absolute transform -translate-y-1/2 right-2 top-1/2">
+								<div
+									x-show="loading"
+									class="w-4 h-4 border-2 border-gray-500 rounded-full animate-spin border-t-transparent"
+								></div>
+								<span
+									x-show="!loading && validation.email"
+									class="text-green-500"
+								>
+									<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+									</svg>
+								</span>
+							</div>
+						</div>
+						<div
+							x-show="errors.email"
+							x-text="errors.email"
+							class="mt-2 text-sm text-red-600"
+						></div>
+					</div>
+					<!-- Password Field -->
+					<div class="mb-6">
+						<label for="password" class="block mb-2 text-sm font-medium text-gray-900">
+							Password
+						</label>
+						<div class="relative">
+							<input
+								:type="showPassword ? 'text' : 'password'"
+								id="password"
+								name="password"
+								x-model="formData.password"
+								@input.debounce.300ms="validatePassword()"
+								@blur="validatePassword()"
+								class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-black focus:border-black block w-full p-2.5 pr-10"
+								:class="{'border-red-500': errors.password}"
+								placeholder="•••••••••"
+								required
+							/>
+							<button
+								type="button"
+								@click="showPassword = !showPassword"
+								class="absolute inset-y-0 right-0 flex items-center pr-3 focus:outline-none"
+							>
+								<svg
+									x-show="!showPassword"
+									class="w-5 h-5 text-gray-500"
+									fill="none"
+									stroke="currentColor"
+									viewBox="0 0 24 24"
+								>
+									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+								</svg>
+								<svg
+									x-show="showPassword"
+									class="w-5 h-5 text-gray-500"
+									fill="none"
+									stroke="currentColor"
+									viewBox="0 0 24 24"
+								>
+									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"></path>
+								</svg>
 							</button>
 						</div>
-						<div id="password-status">
-						<p class="mt-2 text-sm text-red-600 dark:text-red-500"><span class="font-medium">Oh, snapp!</span> Some error message.</p>
-						</div>
+						<div
+							x-show="errors.password"
+							x-text="errors.password"
+							class="mt-2 text-sm text-red-600"
+						></div>
 					</div>
-					<button type="submit" class="w-full text-white bg-blue-600 hover:bg-blue-700 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5">Login</button>
+					<!-- Submit Button -->
+					<button
+						type="submit"
+						:disabled="!isFormValid()"
+						:class="{'opacity-50 cursor-not-allowed': !isFormValid()}"
+						class="w-full text-white bg-black hover:bg-gray-800 focus:ring-4 focus:outline-none focus:ring-gray-500 font-medium rounded-lg text-sm px-5 py-2.5 transition-all duration-200"
+					>
+						<span x-show="!loading">Login</span>
+						<div x-show="loading" class="flex items-center justify-center">
+							<svg class="w-5 h-5 mr-2 animate-spin" fill="none" viewBox="0 0 24 24">
+								<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+								<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+							</svg>
+							Processing...
+						</div>
+					</button>
 				</form>
 			</div>
 		</main>
-		@components.Footer()<p class="mt-2 text-sm text-red-600 dark:text-red-500"><span class="font-medium">Oh, snapp!</span> Some error message.</p>
+		@components.Footer()
 	}
 }

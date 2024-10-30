@@ -1,0 +1,17 @@
+package public
+
+import (
+	"github.com/Zenk41/simple-file-web/views/components"
+	"github.com/Zenk41/simple-file-web/views/layouts"
+)
+
+templ Index(data string, component templ.Component) {
+	@layouts.Base() {
+		@components.Header()
+		{ data }
+		if component != nil {
+			@component
+		}
+		@components.Footer()
+	}
+}

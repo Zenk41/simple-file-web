@@ -1,0 +1,14 @@
+package home
+
+import (
+	"github.com/Zenk41/simple-file-web/views/components"
+	"github.com/Zenk41/simple-file-web/views/layouts"
+)
+
+templ BucketPage(bucket []string) {
+	@layouts.Base() {
+		@components.Header()
+		@components.BucketList(bucket)
+		@components.Footer()
+	}
+}

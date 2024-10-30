@@ -1,0 +1,191 @@
+package public
+
+import (
+	"github.com/Zenk41/simple-file-web/views/components"
+	"strings"
+)
+
+func buildFullPath(dirs []string, endIndex int) string {
+	fullPath := ""
+	for i := 1; i <= endIndex; i++ {
+		fullPath += "/" + dirs[i]
+	}
+	return fullPath
+}
+
+templ BreadCrumb(dirs []string, link string, comp templ.Component) {
+	<!-- Breadcrumb -->
+	<nav class="flex justify-between px-5 py-3 text-gray-700 border border-gray-200 rounded-lg bg-gray-50 dark:bg-gray-800 dark:border-gray-700" aria-label="Breadcrumb">
+		<ol class="inline-flex items-center space-x-1 md:space-x-2 rtl:space-x-reverse">
+			<li class="inline-flex items-center">
+				<a @click="loading = true" href={ templ.SafeURL("/p/" + link) } class="inline-flex items-center text-sm font-medium text-gray-700 hover:text-blue-600 dark:text-gray-400 dark:hover:text-white">
+					<svg class="w-3 h-3 me-2.5" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 20 20">
+						<path d="m19.707 9.293-2-2-7-7a1 1 0 0 0-1.414 0l-7 7-2 2a1 1 0 0 0 1.414 1.414L2 10.414V18a2 2 0 0 0 2 2h3a1 1 0 0 0 1-1v-4a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v4a1 1 0 0 0 1 1h3a2 2 0 0 0 2-2v-7.586l.293.293a1 1 0 0 0 1.414-1.414Z"></path>
+					</svg>
+					{ link }
+				</a>
+			</li>
+			<li aria-current="page">
+				<div class="flex items-center">
+					<svg class="w-3 h-3 mx-1 text-gray-400 rtl:rotate-180" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 6 10">
+						<path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m1 9 4-4-4-4"></path>
+					</svg>
+					<span class="text-sm font-medium text-gray-500 ms-1 md:ms-2 dark:text-gray-400">{ strings.ReplaceAll( dirs[1], "%20", " ") }</span>
+				</div>
+			</li>
+		</ol>
+		if len(dirs)  >= 1 {
+			@comp
+		}
+	</nav>
+}
+
+templ ListObject(dirs []string, files []string, link string) {
+	<main class="flex-grow max-w-4xl p-4 m-auto ">
+		<div x-data="fileManager()" class="w-full p-4 bg-white border border-gray-200 rounded-lg shadow sm:p-6 md:p-8 dark:bg-gray-800 dark:border-gray-700">
+			@BreadCrumb(dirs, link, Dropdown(dirs))
+			<div class="flex flex-wrap gap-4 py-4" x-data="{ showMenu: false, menuX: 0, menuY: 0 }">
+				<!-- File Elements -->
+				if len(files) > 0 {
+					for _, file := range files {
+						@components.File(file, dirs[0])
+					}
+				}
+				<!-- Context Menu -->
+				<div
+					x-show="showMenu"
+					x-bind:style="{ top: menuY + 'px', left: menuX + 'px' }"
+					@click.away="showMenu = false"
+					class="absolute z-50 p-2 bg-white border border-gray-300 rounded-lg shadow-lg"
+				>
+					<ul>
+						<!-- Hide "Open" and "Download" if a folder is selected -->
+						<li x-show="selectedType === 'file'" @click="showMenu = false; openInNewTab()" class="px-4 py-2 cursor-pointer hover:bg-gray-200">Download</li>
+						<li x-show="selectedType === 'file'" @click="showMenu = false; openPresignedUrl()" class="px-4 py-2 cursor-pointer hover:bg-gray-200">Open</li>
+					</ul>
+				</div>
+			</div>
+		</div>
+		<script>
+        function fileManager() {
+         return {
+
+				selectedFile: '',
+                selectedBucket: '',
+                selectedType: '',
+                showMenu: false,
+                menuX: 0,
+                menuY: 0,
+                loading: false,
+								showModal:false,
+
+
+				selectFile(file, bucket, type = 'file') {
+            this.selectedFile = file;
+            this.selectedBucket = bucket;
+            this.selectedType = type;
+        },
+
+        // Open the selected file in a new tab
+        openInNewTab() {
+            if (this.selectedFile && this.selectedBucket) {
+                const url = `/api/download?bucket=${encodeURIComponent(this.selectedBucket)}&file=${encodeURIComponent(this.selectedFile)}`;
+                window.open(url, '_blank');
+            }
+        },
+
+        // Open a pre-signed URL for the selected file
+        openPresignedUrl() {
+            if (this.selectedFile && this.selectedBucket) {
+                const url = `/api/presigned-url?bucket=${encodeURIComponent(this.selectedBucket)}&file=${encodeURIComponent(this.selectedFile)}`;
+								console.log(url)
+                // Make an AJAX request to fetch the pre-signed URL
+                fetch(url)
+                    .then((response) => response.json())
+                    .then((data) => {
+                        if (data.url) {
+                            window.open(data.url, '_blank');
+                        } else {
+                            alert('Failed to get pre-signed URL');
+                        }
+                    })
+                    .catch((error) => {
+                        console.error('Error fetching pre-signed URL:', error);
+                        alert('Failed to get pre-signed URL');
+                    });
+            }
+        },
+
+// Download a zip folder based on bucket and file path
+async downloadZipFolder(bucket, filePath) {
+    // Construct the URL for downloading the zip folder
+    const url = `/api/downloads?bucket=${encodeURIComponent(bucket)}&path=${encodeURIComponent(filePath)}`;
+
+    try {
+			this.loading = true;
+        // Fetch the ZIP file
+        const response = await fetch(url);
+
+        // Check if the response is OK
+        if (!response.ok) {
+            throw new Error(`Error: ${response.statusText}`);
+        }
+
+        // Convert response to a blob
+        const blob = await response.blob();
+
+        // Check the size of the blob
+        if (!blob || blob.size === 0) {
+            throw new Error("Downloaded file is empty.");
+        }
+
+        // Create a URL for the blob and trigger the download
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = `download${filePath}.zip`; // Set a dynamic filename
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+        // Clean up the URL object
+        URL.revokeObjectURL(link.href);
+
+        // Provide success feedback to the user
+        alert('Download successful!');
+    } catch (error) {
+        console.error('Download failed:', error);
+        alert('Failed to download the ZIP file. Please try again.'); // Notify user of the error
+    } finally {
+        // Hide loading state
+				this.loading = false;
+    }
+}
+    };
+}
+document.body.addEventListener('htmx:afterRequest', function (event) {
+        // Check if the request was successful
+        if (event.detail.xhr.status === 200) {
+            const response = JSON.parse(event.detail.xhr.responseText);
+            if (response.redirect) {
+                window.location.href = response.redirect; // Redirect
+            }
+        }
+				
+    });
+</script>
+	</main>
+}
+
+templ Dropdown(dirs []string) {
+	<button id="dropdownHoverButton" data-dropdown-toggle="dropdownHover" data-dropdown-trigger="hover" class="inline-flex items-center px-3 py-2 text-lg font-medium text-gray-800 transition duration-150 ease-in-out dark:text-gray-200" type="button">
+		☰
+	</button>
+	<!-- Dropdown menu -->
+	<div id="dropdownHover" class="z-10 hidden transition-opacity duration-300 ease-in-out bg-white divide-y divide-gray-100 rounded-lg shadow-lg w-44 dark:bg-gray-800">
+		<ul class="py-2 text-sm text-gray-700 dark:text-gray-200" aria-labelledby="dropdownHoverButton">
+			<li>
+				<a @click={ "downloadZipFolder('" + dirs[0] + "', '" + strings.TrimPrefix(buildFullPath(dirs, len(dirs)-1), "/") + "/')" } class="block px-4 py-2 transition-colors duration-200 hover:bg-gray-100 dark:hover:bg-gray-700 dark:hover:text-white">Download Folder</a>
+			</li>
+		</ul>
+	</div>
+}

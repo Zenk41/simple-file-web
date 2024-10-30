@@ -1,0 +1,28 @@
+package on_boarding
+
+import (
+	"github.com/Zenk41/simple-file-web/views/components"
+	"github.com/Zenk41/simple-file-web/views/layouts"
+)
+
+templ Ob3() {
+	@layouts.Base() {
+		@components.Header()
+		<main class="flex-grow max-w-4xl p-4 m-auto">
+			<h2>On Boarding 3</h2>
+			<div class="max-w-sm p-5 mx-auto bg-white border border-gray-200 rounded-lg shadow-md">
+				<h3>Setup the 2FA</h3>
+				<h4>Input the Code to validate the 2FA</h4>
+				<form>
+					<div>
+						<label>
+							Username
+						</label>
+						<input/>
+					</div>
+				</form>
+			</div>
+		</main>
+		@components.Footer()
+	}
+}

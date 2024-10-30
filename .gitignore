@@ -7,3 +7,5 @@ packages/*/README.md
 bin
 *_templ.go
 tmp
+db_publik_link.json
+db_user.json

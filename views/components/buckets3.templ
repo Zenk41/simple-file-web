@@ -1,0 +1,25 @@
+package components
+
+import ()
+
+templ BucketList(bucket []string) {
+	<main class="flex-grow max-w-4xl p-4 m-auto ">
+		<div class="w-full p-4 bg-white border border-gray-200 rounded-lg shadow sm:p-6 md:p-8 dark:bg-gray-800 dark:border-gray-700">
+			<div x-data="fileManager()" class="grid grid-cols-2 gap-8"></div>
+			<!-- Bucket List -->
+			<div>
+				<h2 class="mb-4 text-xl font-bold">Bucket List</h2>
+				<div class="space-y-4">
+					for _, b := range bucket {
+						<div
+							@contextmenu.prevent="showBucketMenu = true; menuX = $event.pageX; menuY = $event.pageY; selectedBucket='{{.Name}}'"
+							class="relative w-48 p-4 bg-gray-200 border border-gray-300 rounded-lg shadow-md cursor-pointer"
+						>
+							<h5 class="text-lg font-medium text-gray-900"><a @click="loading = true" href={ templ.SafeURL("/b/" + b) }>🪣{ b }</a></h5>
+						</div>
+					}
+				</div>
+			</div>
+		</div>
+	</main>
+}
