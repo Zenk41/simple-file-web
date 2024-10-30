@@ -13,153 +13,209 @@ templ Login() {
 				<h3 class="text-lg font-bold text-center">Login Form</h3>
 				<form
 					x-data="{
-						email: '',
-						password: '',
-						showPassword: false,
-						loading: false,
-						emailValid: false,
-						emailError: '',
-						passwordError: '',
-						validateEmail() {
-								this.loading = true;
-								// Simulate API call delay
-								setTimeout(() => {
-										const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-										if (!emailRegex.test(this.email)) {
-												this.emailError = 'Please enter a valid email address';
-												this.emailValid = false;
-										} else {
-												this.emailError = '';
-												this.emailValid = true;
-										}
-										this.loading = false;
-								}, 1000);
-						},
-						validatePassword() {
-								if (this.password.length < 8) {
-										this.passwordError = 'Password must be at least 8 characters';
-								} else if (!/\d/.test(this.password)) {
-										this.passwordError = 'Password must contain at least one number';
-								} else if (!/[A-Z]/.test(this.password)) {
-										this.passwordError = 'Password must contain at least one uppercase letter';
-								} else {
-										this.passwordError = '';
-								}
-						},
-						async submitForm() {
-								this.validateEmail();
-								this.validatePassword();
-
-								if (!this.emailError && !this.passwordError) {
-										this.loading = true;
-										try {
-												const formData = new FormData();
-												formData.append('email', this.email);
-												formData.append('password', this.password);
-
-												const response = await fetch('/auth/login', {
-														method: 'POST',
-														body: formData,
-												});
-
-												const data = await response.json();
-
-												if (response.ok) {
-														alert('Login successful: ' + data.message);
-														window.location.href = data.redirect;
-												} else {
-														alert('Login failed: ' + data.message);
-														window.location.href = data.redirect;
-												}
-										} catch (error) {
-												alert('An error occurred: ' + error.message);
-										} finally {
-												this.loading = false;
-										}
+							formData: {
+									email: '',
+									password: ''
+							},
+							showPassword: false,
+							loading: false,
+							errors: {
+									email: '',
+									password: ''
+							},
+							validation: {
+									email: false,
+									password: false
+							},
+							async validateEmail() {
+									this.loading = true;
+									const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+									
+									if (!this.formData.email) {
+											this.errors.email = 'Email is required';
+											this.validation.email = false;
+									} else if (!emailRegex.test(this.formData.email)) {
+											this.errors.email = 'Please enter a valid email address';
+											this.validation.email = false;
+									} else {
+											this.errors.email = '';
+											this.validation.email = true;
 									}
-								}
-							}"
+									
+									await new Promise(resolve => setTimeout(resolve, 500));
+									this.loading = false;
+							},
+							validatePassword() {
+									const password = this.formData.password;
+									if (!password) {
+											this.errors.password = 'Password is required';
+											this.validation.password = false;
+											return;
+									}
+									
+									const validations = [
+											{ test: (p) => p.length >= 8, message: 'Password must be at least 8 characters' },
+											{ test: (p) => /\d/.test(p), message: 'Password must contain at least one number' },
+											{ test: (p) => /[A-Z]/.test(p), message: 'Password must contain at least one uppercase letter' },
+											// { test: (p) => /[!@#$%^&*]/.test(p), message: 'Password must contain at least one special character' }
+									];
+
+									const failedValidation = validations.find(v => !v.test(password));
+									
+									if (failedValidation) {
+											this.errors.password = failedValidation.message;
+											this.validation.password = false;
+									} else {
+											this.errors.password = '';
+											this.validation.password = true;
+									}
+							},
+							isFormValid() {
+									return this.validation.email && 
+													this.validation.password && 
+													!this.loading;
+							},
+							async submitForm() {
+									if (!this.isFormValid()) return;
+									
+									this.loading = true;
+									try {
+											const response = await fetch('/api/auth/login', {
+													method: 'POST',
+													headers: {
+															'Content-Type': 'application/json',
+													},
+													body: JSON.stringify({
+															email: this.formData.email,
+															password: this.formData.password
+													})
+											});
+
+											const data = await response.json();
+											
+											if (!response.ok) throw new Error(data.message || 'Login failed');
+											
+											// Success handling
+											window.location.href = data.redirect || '/dashboard';
+									} catch (error) {
+											console.error('Login error:', error);
+											// Show error in UI
+											this.$dispatch('show-toast', { 
+													message: error.message,
+													type: 'error'
+											});
+									} finally {
+											this.loading = false;
+									}
+							}
+					}"
 					@submit.prevent="submitForm()"
 					class="space-y-4"
 				>
+					<!-- Email Field -->
 					<div class="mb-6">
-						<label for="email" class="block mb-2 text-sm font-medium text-gray-900">Email</label>
+						<label for="email" class="block mb-2 text-sm font-medium text-gray-900">
+							Email
+						</label>
 						<div class="relative">
 							<input
 								type="email"
 								id="email"
 								name="email"
-								x-model="email"
-								@input.debounce.1000ms="validateEmail()"
-								class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 pr-10"
+								x-model="formData.email"
+								@input.debounce.500ms="validateEmail()"
+								@blur="validateEmail()"
+								class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-black focus:border-black block w-full p-2.5 pr-10"
+								:class="{'border-red-500': errors.email}"
 								placeholder="example@domain.com"
 								required
 							/>
 							<div class="absolute transform -translate-y-1/2 right-2 top-1/2">
-								<!-- Loading spinner -->
 								<div
 									x-show="loading"
-									class="w-4 h-4 border-2 border-blue-500 rounded-full animate-spin border-t-transparent"
+									class="w-4 h-4 border-2 border-gray-500 rounded-full animate-spin border-t-transparent"
 								></div>
-								<!-- Checkmark when valid -->
 								<span
-									x-show="!loading && emailValid"
-									class="text-xl text-green-500"
+									x-show="!loading && validation.email"
+									class="text-green-500"
 								>
-									✅
-								</span>
-								<!-- Cross mark when invalid and touched -->
-								<span
-									x-show="!loading && email && !emailValid"
-									class="text-xl text-red-500"
-								>
-									❌
+									<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+									</svg>
 								</span>
 							</div>
 						</div>
 						<div
-							x-show="emailError"
-							x-text="emailError"
+							x-show="errors.email"
+							x-text="errors.email"
 							class="mt-2 text-sm text-red-600"
 						></div>
 					</div>
+					<!-- Password Field -->
 					<div class="mb-6">
-						<label for="password" class="block mb-2 text-sm font-medium text-gray-900">Password</label>
+						<label for="password" class="block mb-2 text-sm font-medium text-gray-900">
+							Password
+						</label>
 						<div class="relative">
 							<input
 								:type="showPassword ? 'text' : 'password'"
 								id="password"
 								name="password"
-								x-model="password"
-								@input.debounce.1000ms="validatePassword()"
-								class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 pr-10"
+								x-model="formData.password"
+								@input.debounce.300ms="validatePassword()"
+								@blur="validatePassword()"
+								class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-black focus:border-black block w-full p-2.5 pr-10"
+								:class="{'border-red-500': errors.password}"
 								placeholder="•••••••••"
 								required
 							/>
 							<button
 								type="button"
 								@click="showPassword = !showPassword"
-								class="absolute inset-y-0 right-0 flex items-center pr-3"
+								class="absolute inset-y-0 right-0 flex items-center pr-3 focus:outline-none"
 							>
-								<span x-text="showPassword ? '🙈' : '👁️'" class="text-lg"></span>
+								<svg
+									x-show="!showPassword"
+									class="w-5 h-5 text-gray-500"
+									fill="none"
+									stroke="currentColor"
+									viewBox="0 0 24 24"
+								>
+									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+								</svg>
+								<svg
+									x-show="showPassword"
+									class="w-5 h-5 text-gray-500"
+									fill="none"
+									stroke="currentColor"
+									viewBox="0 0 24 24"
+								>
+									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"></path>
+								</svg>
 							</button>
 						</div>
 						<div
-							x-show="passwordError"
-							x-text="passwordError"
+							x-show="errors.password"
+							x-text="errors.password"
 							class="mt-2 text-sm text-red-600"
 						></div>
 					</div>
+					<!-- Submit Button -->
 					<button
 						type="submit"
-						:disabled="loading || emailError || passwordError || !emailValid"
-						:class="{'opacity-50 cursor-not-allowed': loading || emailError || passwordError || !emailValid}"
-						class="w-full text-white bg-black hover:bg-gray-800 focus:ring-4 focus:outline-none focus:ring-gray-500 font-medium rounded-lg text-sm px-5 py-2.5"
+						:disabled="!isFormValid()"
+						:class="{'opacity-50 cursor-not-allowed': !isFormValid()}"
+						class="w-full text-white bg-black hover:bg-gray-800 focus:ring-4 focus:outline-none focus:ring-gray-500 font-medium rounded-lg text-sm px-5 py-2.5 transition-all duration-200"
 					>
 						<span x-show="!loading">Login</span>
-						<span x-show="loading" class="flex items-center justify-center">
-							<div class="w-4 h-4 mr-2 border-2 border-white rounded-full animate-spin border-t-transparent"></div>
-						</span>
+						<div x-show="loading" class="flex items-center justify-center">
+							<svg class="w-5 h-5 mr-2 animate-spin" fill="none" viewBox="0 0 24 24">
+								<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+								<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+							</svg>
+							Processing...
+						</div>
 					</button>
 				</form>
 			</div>
