@@ -1,13 +1,14 @@
 package views_auth
 
 import (
+	"github.com/Zenk41/simple-file-web/models"
 	"github.com/Zenk41/simple-file-web/views/components"
 	"github.com/Zenk41/simple-file-web/views/layouts"
 )
 
 templ Register() {
 	@layouts.Base() {
-		@components.Header()
+		@components.Header(models.User{}, false)
 		<main class="flex-grow max-w-4xl p-4 m-auto">
 			<div class="max-w-sm p-5 mx-auto bg-white border border-gray-200 rounded-lg shadow-md">
 				<h3 class="font-bold text-center text-md">Register Form</h3>
@@ -21,12 +22,26 @@ templ Register() {
 							error: '',
 							validate() {
 								this.loading = true;
+
+								const validations = [
+									{
+										test: (u) => u.length > 3 || u.length < 10,
+										message: 'Username must be between 3 and 10 characters long.',
+										priority: 1
+									},
+									{
+										test: (u) => /^[a-zA-Z0-9._-]+$/.test(u),
+										message: 'Username can only contain letters, numbers, dots, underscores, or hyphens.',
+										priority: 2
+									},
+								]
 								setTimeout(() => {
-									if (this.value.length < 3 || this.value.length > 10) {
-										this.error = 'Username must be between 3 and 10 characters long.';
-										this.valid = false;
-									} else if (!/^[a-zA-Z0-9._-]+$/.test(this.value)) {
-										this.error = 'Username can only contain letters, numbers, dots, underscores, or hyphens.';
+									const failedValidation = validations
+										.sort((a,b) => a.priority - b.priority)
+										.find(v => !v.test(this.value));
+
+									if (failedValidation) {
+										this.error = failedValidation.message;
 										this.valid = false;
 									} else {
 										this.error = '';
@@ -43,9 +58,21 @@ templ Register() {
 							error: '',
 							validate() {
 								this.loading = true;
+								const validations = [
+									{
+										test: (e) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e),
+										message: 'Please enter a valid email address',
+										priority: 1
+									}
+								];
+								
 								setTimeout(() => {
-									if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(this.value)) {
-										this.error = 'Please enter a valid email address';
+									const failedValidation = validations
+										.sort((a, b) => a.priority - b.priority)
+										.find(v => !v.test(this.value));
+										
+									if (failedValidation) {
+										this.error = failedValidation.message;
 										this.valid = false;
 									} else {
 										this.error = '';
@@ -63,24 +90,26 @@ templ Register() {
 							show: false,
 							validate() {
 								this.loading = true;
+								const validations = [
+									{ test: (p) => p.length >= 8, message: 'Password must be at least 8 characters', priority: 1 },
+									{ test: (p) => /\d/.test(p), message: 'Password must contain at least one number', priority: 2 },
+									{ test: (p) => /[A-Z]/.test(p), message: 'Password must contain at least one uppercase letter', priority: 3 },
+									{ test: (p) => /[!@#$%^&*]/.test(p), message: 'Password must contain at least one special character', priority: 4 }
+								];
+								
 								setTimeout(() => {
-									if (this.value.length < 8) {
-										this.error = 'Password must be at least 8 characters';
-										this.valid = false;
-									} else if (!/\d/.test(this.value)) {
-										this.error = 'Password must contain at least one number';
-										this.valid = false;
-									} else if (!/[A-Z]/.test(this.value)) {
-										this.error = 'Password must contain at least one uppercase letter';
+									const failedValidation = validations
+										.sort((a, b) => a.priority - b.priority)
+										.find(v => !v.test(this.value));
+										
+									if (failedValidation) {
+										this.error = failedValidation.message;
 										this.valid = false;
 									} else {
 										this.error = '';
 										this.valid = true;
 									}
 									this.loading = false;
-									if ($data.fields.confirmPassword.value) {
-										$data.fields.confirmPassword.validate();
-									}
 								}, 500);
 							}
 						},
@@ -92,18 +121,19 @@ templ Register() {
 							show: false,
 							validate() {
 								this.loading = true;
+								const validations = [
+									{ test: (p) => p.length >= 8, message: 'Password must be at least 8 characters', priority: 1 },
+									{ test: (p) => /\d/.test(p), message: 'Password must contain at least one number', priority: 2 },
+									{ test: (p) => /[A-Z]/.test(p), message: 'Password must contain at least one uppercase letter', priority: 3 },
+									{ test: (p) => /[!@#$%^&*]/.test(p), message: 'Password must contain at least one special character', priority: 4 }
+								];
 								setTimeout(() => {
-									if (this.value !== $data.fields.password.value) {
-										this.error = 'The passwords do not match';
-										this.valid = false;
-									} else if (this.value.length < 8) {
-										this.error = 'Password must be at least 8 characters';
-										this.valid = false;
-									} else if (!/\d/.test(this.value)) {
-										this.error = 'Password must contain at least one number';
-										this.valid = false;
-									} else if (!/[A-Z]/.test(this.value)) {
-										this.error = 'Password must contain at least one uppercase letter';
+									const failedValidation = validations
+										.sort((a, b) => a.priority - b.priority)
+										.find(v => !v.test(this.value));
+										
+									if (failedValidation) {
+										this.error = failedValidation.message;
 										this.valid = false;
 									} else {
 										this.error = '';
@@ -174,9 +204,10 @@ templ Register() {
 								id="username"
 								maxlength="10"
 								x-model="fields.username.value"
-								@input.debounce.1000ms="fields.username.validate()"
+								@input="fields.username.validate()"
+								@blur="fields.username.validate()"
 								class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-black focus:border-black block w-full p-2.5 pr-10"
-								placeholder="zenk41"
+								placeholder="dadang"
 								required
 							/>
 							<div class="absolute transform -translate-y-1/2 right-2 top-1/2">
@@ -210,7 +241,8 @@ templ Register() {
 								type="email"
 								id="email"
 								x-model="fields.email.value"
-								@input.debounce.1000ms="fields.email.validate()"
+								@input="fields.email.validate()"
+								@blur="fields.email.validate()"
 								class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-black focus:border-black block w-full pl-2.5 pr-28 p-2.5"
 								placeholder="example@domain.com"
 								required
@@ -247,7 +279,8 @@ templ Register() {
 								id="password"
 								maxlength="10"
 								x-model="fields.password.value"
-								@input.debounce.1000ms="fields.password.validate()"
+								@input="fields.password.validate()"
+								@blur="fields.password.validate()"
 								class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-black focus:border-black block w-full pl-2.5 pr-28 p-2.5"
 								placeholder="•••••••••"
 								required
@@ -291,7 +324,8 @@ templ Register() {
 								id="confirmPassword"
 								maxlength="10"
 								x-model="fields.confirmPassword.value"
-								@input.debounce.1000ms="fields.confirmPassword.validate()"
+								@input="fields.confirmPassword.validate()"
+								@blur="fields.confirmPassword.validate()"
 								class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-black focus:border-black block w-full p-2.5 pr-10"
 								placeholder="•••••••••"
 								required
