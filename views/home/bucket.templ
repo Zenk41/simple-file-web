@@ -1,13 +1,14 @@
 package home
 
 import (
+	"github.com/Zenk41/simple-file-web/models"
 	"github.com/Zenk41/simple-file-web/views/components"
 	"github.com/Zenk41/simple-file-web/views/layouts"
 )
 
-templ BucketPage(bucket []string) {
+templ BucketPage(user models.User, bucket []string) {
 	@layouts.Base() {
-		@components.Header()
+		@components.Header(user, true)
 		@components.BucketList(bucket)
 		@components.Footer()
 	}
