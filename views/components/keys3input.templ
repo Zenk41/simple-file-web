@@ -1,30 +1,616 @@
 package components
 
-templ InputKeysS3() {
-	<main class="flex-grow max-w-4xl p-4 m-auto ">
-		<div>
-			<h3 class="text-lg font-bold text-center">Input Keys</h3>
-			<form autocomplete="off">
-				<div class="grid gap-6 mb-6 md:grid-cols-2">
-					<div>
-						<label for="s3_access" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">S3 Access Key</label>
-						<input name="s3access" type="text" id="s3_access" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500" placeholder="place your s3 access key here..." value="" required/>
+import "github.com/Zenk41/simple-file-web/models"
+
+templ InputKeysS3(cfg models.ConfigS3) {
+	<main class="flex-grow w-full p-4 m-auto">
+		<div
+			x-data="{
+					showMenu1: false,
+					showMenu2: true,
+					toggleMenu() {
+						this.showMenu1 = !this.showMenu1;
+						this.showMenu2 = !this.showMenu2;
+					}
+		}"
+			class="max-w-xl p-5 mx-auto bg-white border border-gray-200 rounded-lg shadow-m"
+		>
+			<div
+				x-show="showMenu1"
+				x-transition:enter="transition ease-out duration-300"
+				x-transition:enter-start="opacity-0 transform scale-95"
+				x-transition:enter-end="opacity-100 transform scale-100"
+				x-transition:leave="transition ease-in duration-200"
+				x-transition:leave-start="opacity-100 transform scale-100"
+				x-transition:leave-end="opacity-0 transform scale-95"
+			>
+				<h3 class="text-lg font-bold text-center">Input Keys</h3>
+				<form
+					x-data={ `{
+						initialValues: {
+                s3accesskey: '`+cfg.S3AccessKey+`',
+                s3secretkey: '`+cfg.S3SecretKey+`',
+                s3region: '`+cfg.S3Region+`',
+                s3url: '`+cfg.S3URL+`'
+            },
+						fields: {
+							s3accesskey: {
+								value: '`+cfg.S3AccessKey+`',
+								loading: false,
+								valid: false,
+								error: '',
+								show:false,
+								validate(){
+									this.loading = true;
+									setTimeout(() => {
+										if (!/^[A-Za-z0-9]{16,40}$/.test(this.value)) {
+											this.error = 'S3 Access key not valid';
+											this.valid = false;
+										} else {
+											this.error = '';
+											this.valid = true;
+										}
+											this.loading = false;
+									}, 300)
+								}
+							},
+							s3secretkey: {
+								value: '`+cfg.S3SecretKey+`',
+								loading: false,
+								valid: false,
+								error: '',
+								show:false,
+								validate(){
+									this.loading = true;
+									setTimeout(() => {
+										if (!/^[A-Za-z0-9/+=]+$/.test(this.value)) {
+											this.error = 'S3 Secret key not valid';
+											this.valid = false;
+										} else {
+											this.error = '';
+											this.valid = true;
+										}
+										this.loading = false;
+									}, 300)
+								}
+							},
+							s3region: {
+								value: '`+cfg.S3Region+`',
+								loading: false,
+								valid: false,
+								error: '',
+								validate(){
+									this.loading = true;
+									setTimeout(() => {
+										if (!/^(garage|[a-z]{2}-[a-z]+-\d)$/.test(this.value)) {
+											this.error = 'Region not valid';
+											this.valid = false;
+										} else {
+											this.error = '';
+											this.valid = true;
+										}
+										this.loading = false;
+									}, 300)
+								}
+							},
+							s3url:{
+								value: '`+cfg.S3URL+`',
+								loading: false,
+								valid: false,
+								error: '',
+								validate() {
+									this.loading = true;
+
+									const validations = [
+										{
+											// Simple URL validation for the specified format
+											test: (u) => /^(https?:\/\/)?[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}(\/[^\s]*)?$/.test(u),
+												message: 'S3 URL not valid'
+											}
+									];
+
+									setTimeout(() => {
+										const failedValidation = validations.find(v => !v.test(this.value));
+
+										if (failedValidation) {
+											this.error = failedValidation.message;
+											this.valid = false;
+										} else {
+											this.error = '';
+											this.valid = true;
+										}
+										this.loading = false;
+									}, 300)
+								}
+							}
+						},
+						resetForm() {
+                // Reset each field to its initial value
+                Object.keys(this.fields).forEach(key => {
+                    this.fields[key].value = this.initialValues[key];
+                    this.fields[key].error = '';
+                    this.fields[key].valid = false;
+                    this.fields[key].loading = false;
+                    this.fields[key].show = false;
+                });
+                // Revalidate all fields
+                Object.values(this.fields).forEach(field => field.validate());
+            },
+						submitting: false,
+						submitError: '',
+						async handleSubmit() {
+							if (this.isLoading || this.hasErrors || !this.isValid) return;
+
+							this.submitting = true;
+							this.submitError = '';
+							
+							try {
+								setLoading(true);
+								const response = await fetch('/api/key', {
+									method: 'POST',
+									headers: {
+										'Content-Type' : 'application/json',
+									},
+									body: JSON.stringfy({
+										s3accesskey: this.fields.s3accesskey.value,
+										s3secretkey: this.fields.s3secretkey.value,
+										s3region: this.fields.s3region.value,
+										s3url: this.fields.s3url.value,
+										
+									})
+								});
+								const data = await response.json();
+
+								if (!respponse.ok) {
+									throw new Error(data.message || 'Input s3 configuration failed');
+								}
+
+								window.location.href = data.redirect;
+							
+							} catch (error) {
+								this.submitError = error.message || 'An error occurred during submitting s3 config';
+
+								console.error('config error:', error);
+								this.$dispatch('show-toast', {
+									message : this.submitError,
+									type: 'error'
+								});
+							} finally {
+								this.submitting = false;
+								setLoading(false);
+							}
+						},
+						get isLoading() {
+							return Object.values(this.fields).some(field => field.loading) || this.submitting;
+						},
+						get hasErrors() {
+								return Object.values(this.fields).some(field => field.error);
+						},
+						get isValid() {
+								return Object.values(this.fields).every(field => field.valid);
+						},
+					}` }
+					class="space-y-4"
+					@submit.prevent="handleSubmit"
+					x-init="Object.values(fields).forEach(field => field.validate())"
+				>
+					<div class="mb-6">
+						<label for="s3accesskey" class="block mb-2 text-sm font-medium text-gray-900">
+							S3 Access Key
+						</label>
+						<div class="relative">
+							<input
+								:type="fields.s3accesskey.show ? 'text' : 'password'"
+								id="s3accesskey"
+								x-model="fields.s3accesskey.value"
+								@input="fields.s3accesskey.validate()"
+								@blur="fields.s3accesskey.validate()"
+								class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-black focus:border-black block w-full p-2.5 pr-10"
+								required
+							/>
+							<div class="absolute flex items-center -translate-y-1/2 right-12 top-1/2">
+								<div
+									x-show="fields.s3accesskey.loading"
+									class="w-4 h-4 border-2 border-black rounded-full animate-spin border-t-transparent"
+								></div>
+								<span
+									x-show="!fields.s3accesskey.loading && fields.s3accesskey.valid"
+									class="text-xl text-green-500"
+								>✅</span>
+								<span
+									x-show="!fields.s3accesskey.loading && fields.s3accesskey.value && !fields.s3accesskey.valid"
+									class="text-xl text-red-500"
+								>❌</span>
+							</div>
+							<button
+								type="button"
+								@click="fields.s3accesskey.show = !fields.s3accesskey.show"
+								class="absolute p-1 -translate-y-1/2 rounded-full right-2 top-1/2 hover:bg-gray-100"
+							>
+								<span x-text="fields.s3accesskey.show ? '🙈' : '👁️'" class="text-lg"></span>
+							</button>
+						</div>
+						<div
+							x-show="fields.s3accesskey.error"
+							x-text="fields.s3accesskey.error"
+							class="mt-2 text-sm text-red-600"
+						></div>
 					</div>
-					<div>
-						<label for="s3_secret" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">S3 Secret Key</label>
-						<input name="s3secret" type="text" id="s3_secret" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500" placeholder="place your s3 secret key here..." value="" required/>
+					<div class="mb-6">
+						<label for="s3secretkey" class="block mb-2 text-sm font-medium text-gray-900">
+							S3 Secret Key
+						</label>
+						<div class="relative">
+							<input
+								:type="fields.s3secretkey.show ? 'text' : 'password'"
+								type="text"
+								id="s3secretkey"
+								x-model="fields.s3secretkey.value"
+								@input="fields.s3secretkey.validate()"
+								@blur="fields.s3secretkey.validate()"
+								class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-black focus:border-black block w-full p-2.5 pr-10"
+								required
+							/>
+							<div class="absolute flex items-center -translate-y-1/2 right-12 top-1/2">
+								<div
+									x-show="fields.s3secretkey.loading"
+									class="w-4 h-4 border-2 border-black rounded-full animate-spin border-t-transparent"
+								></div>
+								<span
+									x-show="!fields.s3secretkey.loading && fields.s3secretkey.valid"
+									class="text-xl text-green-500"
+								>✅</span>
+								<span
+									x-show="!fields.s3secretkey.loading && fields.s3secretkey.value && !fields.s3secretkey.valid"
+									class="text-xl text-red-500"
+								>❌</span>
+							</div>
+							<button
+								type="button"
+								@click="fields.s3secretkey.show = !fields.s3secretkey.show"
+								class="absolute p-1 -translate-y-1/2 rounded-full right-2 top-1/2 hover:bg-gray-100"
+							>
+								<span x-text="fields.s3secretkey.show ? '🙈' : '👁️'" class="text-lg"></span>
+							</button>
+						</div>
+						<div
+							x-show="fields.s3secretkey.error"
+							x-text="fields.s3secretkey.error"
+							class="mt-2 text-sm text-red-600"
+						></div>
 					</div>
-					<div>
-						<label for="s3_region" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">S3 Region</label>
-						<input name="s3region" type="text" id="s3_region" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500" placeholder="place your s3 region here..." value="" required/>
+					<div class="mb-6">
+						<label for="s3region" class="block mb-2 text-sm font-medium text-gray-900">
+							S3 Region
+						</label>
+						<div class="relative">
+							<input
+								type="text"
+								id="s3region"
+								x-model="fields.s3region.value"
+								@input="fields.s3region.validate()"
+								@blur="fields.s3region.validate()"
+								class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-black focus:border-black block w-full p-2.5 pr-10"
+								required
+							/>
+							<div class="absolute transform -translate-y-1/2 right-2 top-1/2">
+								<div
+									x-show="fields.s3region.loading"
+									class="w-4 h-4 border-2 border-black rounded-full animate-spin border-t-transparent"
+								></div>
+								<span
+									x-show="!fields.s3region.loading && fields.s3region.valid"
+									class="text-xl text-green-500"
+								>✅</span>
+								<span
+									x-show="!fields.s3region.loading && fields.s3region.value && !fields.s3region.valid"
+									class="text-xl text-red-500"
+								>❌</span>
+							</div>
+						</div>
+						<div
+							x-show="fields.s3region.error"
+							x-text="fields.s3region.error"
+							class="mt-2 text-sm text-red-600"
+						></div>
 					</div>
-					<div>
-						<label for="url" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">S3 URL</label>
-						<input name="s3url" type="text" id="url" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500" placeholder="place your s3 url here..." value="" required/>
+					<div class="mb-6">
+						<label for="s3url" class="block mb-2 text-sm font-medium text-gray-900">
+							S3 URL
+						</label>
+						<div class="relative">
+							<input
+								type="text"
+								id="s3url"
+								x-model="fields.s3url.value"
+								@input="fields.s3url.validate()"
+								@blur="fields.s3url.validate()"
+								class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-black focus:border-black block w-full p-2.5 pr-10"
+								required
+							/>
+							<div class="absolute transform -translate-y-1/2 right-2 top-1/2">
+								<div
+									x-show="fields.s3url.loading"
+									class="w-4 h-4 border-2 border-black rounded-full animate-spin border-t-transparent"
+								></div>
+								<span
+									x-show="!fields.s3url.loading && fields.s3url.valid"
+									class="text-xl text-green-500"
+								>✅</span>
+								<span
+									x-show="!fields.s3url.loading && fields.s3url.value && !fields.s3url.valid"
+									class="text-xl text-red-500"
+								>❌</span>
+							</div>
+						</div>
+						<div
+							x-show="fields.s3url.error"
+							x-text="fields.s3url.error"
+							class="mt-2 text-sm text-red-600"
+						></div>
+					</div>
+					<div
+						x-show="submitError"
+						x-text="submitError"
+						class="p-3 mb-4 text-sm text-red-700 bg-red-100 rounded-lg"
+					></div>
+					<button
+						type="submit"
+						:disabled="isLoading || hasErrors || !isValid"
+						:class="{'opacity-50 cursor-not-allowed': isLoading || hasErrors || !isValid}"
+						class="w-full text-white bg-black hover:bg-gray-800 focus:ring-4 focus:outline-none focus:ring-gray-500 font-medium rounded-lg text-sm px-5 py-2.5"
+					>
+						<span x-show="!submitting">Submit</span>
+						<span x-show="submitting" class="flex items-center justify-center">
+							<div class="w-4 h-4 mr-2 border-2 border-white rounded-full animate-spin border-t-transparent"></div>
+							Submitting...
+						</span>
+					</button>
+					<div class="mt-4 text-center">
+						<button
+							@click="resetForm(); toggleMenu()"
+							type="button"
+							class="px-4 py-2 text-white transition-colors bg-red-500 rounded hover:bg-red-600"
+						>
+							Cancel
+						</button>
+					</div>
+				</form>
+			</div>
+			<!-- Showing the configuration-->
+			<div
+				x-show="showMenu2"
+				x-transition:enter="transition ease-out duration-300"
+				x-transition:enter-start="opacity-0 transform scale-95"
+				x-transition:enter-end="opacity-100 transform scale-100"
+				x-transition:leave="transition ease-in duration-200"
+				x-transition:leave-start="opacity-100 transform scale-100"
+				x-transition:leave-end="opacity-0 transform scale-95"
+				x-data={ `{
+            fields: {
+                s3accesskey: {
+                    value: '` + cfg.S3AccessKey + `',
+                    show: false,
+                    copySuccess: false,
+                },
+                s3secretkey: {
+                    value: '`+cfg.S3SecretKey+ `',
+                    show: false,
+                    copySuccess: false,
+                },
+                s3region: {
+                    value: '` +cfg.S3Region+`',
+                    show: false,
+                    copySuccess: false,
+                },
+                s3url: {
+                    value: '`+cfg.S3URL+`',
+                    show: false,
+                    copySuccess: false,
+                }
+            },
+            copyToClipboard(fieldName) {
+                navigator.clipboard.writeText(this.fields[fieldName].value)
+                    .then(() => {
+                        this.fields[fieldName].copySuccess = true;
+                        setTimeout(() => {
+                            this.fields[fieldName].copySuccess = false;
+                        }, 2000);
+                    });
+            }
+        }` }
+				class="p-6 bg-white rounded-lg shadow"
+			>
+				<h3 class="mb-4 text-lg font-bold text-center">S3 Configuration</h3>
+				<div class="space-y-4">
+					<!-- S3 Access Key -->
+					<div class="mb-6">
+						<label class="block mb-2 text-sm font-medium text-gray-900">
+							S3 Access Key
+						</label>
+						<div class="relative p-4 bg-gray-100 rounded">
+							<p
+								x-text="fields.s3accesskey.show ? fields.s3accesskey.value : '*'.repeat(fields.s3accesskey.value.length)"
+								class="pr-20 font-mono"
+							></p>
+							<div class="absolute inline-flex items-center gap-2 -translate-y-1/2 right-4 top-1/2">
+								<button
+									type="button"
+									@click="copyToClipboard('s3accesskey')"
+									class="p-1.5 rounded-full hover:bg-gray-200 transition-colors relative"
+									aria-label="Copy access key"
+								>
+									<span
+										x-text="fields.s3accesskey.copySuccess ? '✅' : '📋'"
+										class="text-lg"
+									></span>
+									<div
+										x-show="fields.s3accesskey.copySuccess"
+										x-transition:enter="transition ease-out duration-100"
+										x-transition:leave="transition ease-in duration-100"
+										class="absolute px-2 py-1 text-xs text-white -translate-x-1/2 bg-gray-800 rounded -top-8 left-1/2 whitespace-nowrap"
+									>
+										Copied!
+									</div>
+								</button>
+								<button
+									type="button"
+									@click="fields.s3accesskey.show = !fields.s3accesskey.show"
+									class="p-1.5 rounded-full hover:bg-gray-200 transition-colors"
+									aria-label="Toggle access key visibility"
+								>
+									<span x-text="fields.s3accesskey.show ? '🙈' : '👁️'" class="text-lg"></span>
+								</button>
+							</div>
+						</div>
+					</div>
+					<!-- S3 Secret Key -->
+					<div class="mb-6">
+						<label class="block mb-2 text-sm font-medium text-gray-900">
+							S3 Secret Key
+						</label>
+						<div class="relative flex items-center justify-between p-4 bg-gray-100 rounded">
+							<div class="flex-grow mr-16 overflow-hidden">
+								<p
+									x-text="fields.s3secretkey.show ? fields.s3secretkey.value : '*'.repeat(fields.s3secretkey.value.length)"
+									class="font-mono truncate"
+								></p>
+							</div>
+							<div class="absolute inline-flex items-center gap-2 right-4">
+								<button
+									type="button"
+									@click="copyToClipboard('s3secretkey')"
+									class="p-1.5 rounded-full hover:bg-gray-200 transition-colors relative"
+									aria-label="Copy secret key"
+								>
+									<span
+										x-text="fields.s3secretkey.copySuccess ? '✓' : '📋'"
+										x-bind:class="fields.s3secretkey.copySuccess ? 'text-green-600' : ''"
+										class="text-lg"
+									></span>
+									<div
+										x-show="fields.s3secretkey.copySuccess"
+										x-transition:enter="transition ease-out duration-100"
+										x-transition:leave="transition ease-in duration-100"
+										class="absolute px-2 py-1 text-xs text-white -translate-x-1/2 bg-gray-800 rounded -top-8 left-1/2 whitespace-nowrap"
+									>
+										Copied!
+									</div>
+								</button>
+								<button
+									type="button"
+									@click="fields.s3secretkey.show = !fields.s3secretkey.show"
+									class="p-1.5 rounded-full hover:bg-gray-200 transition-colors"
+									aria-label="Toggle secret key visibility"
+								>
+									<span x-text="fields.s3secretkey.show ? '🙈' : '👁️'" class="text-lg"></span>
+								</button>
+							</div>
+						</div>
+					</div>
+					<!-- S3 Region -->
+					<div class="mb-6">
+						<label class="block mb-2 text-sm font-medium text-gray-900">
+							S3 Region
+						</label>
+						<div class="relative p-4 bg-gray-100 rounded">
+							<p
+								x-text="fields.s3region.show ? fields.s3region.value : '*'.repeat(fields.s3region.value.length)"
+								class="pr-20 font-mono"
+							></p>
+							<div class="absolute inline-flex items-center gap-2 -translate-y-1/2 right-4 top-1/2">
+								<button
+									type="button"
+									@click="copyToClipboard('s3region')"
+									class="p-1.5 rounded-full hover:bg-gray-200 transition-colors relative"
+									aria-label="Copy region"
+								>
+									<span
+										x-text="fields.s3region.copySuccess ? '✅' : '📋'"
+										class="text-lg"
+									></span>
+									<div
+										x-show="fields.s3region.copySuccess"
+										x-transition:enter="transition ease-out duration-100"
+										x-transition:leave="transition ease-in duration-100"
+										class="absolute px-2 py-1 text-xs text-white -translate-x-1/2 bg-gray-800 rounded -top-8 left-1/2 whitespace-nowrap"
+									>
+										Copied!
+									</div>
+								</button>
+								<button
+									type="button"
+									@click="fields.s3region.show = !fields.s3region.show"
+									class="p-1.5 rounded-full hover:bg-gray-200 transition-colors"
+									aria-label="Toggle region visibility"
+								>
+									<span x-text="fields.s3region.show ? '🙈' : '👁️'" class="text-lg"></span>
+								</button>
+							</div>
+						</div>
+					</div>
+					<!-- S3 URL -->
+					<div class="mb-6">
+						<label class="block mb-2 text-sm font-medium text-gray-900">
+							S3 URL
+						</label>
+						<div class="relative p-4 bg-gray-100 rounded">
+							<p
+								x-text="fields.s3url.show ? fields.s3url.value : '*'.repeat(fields.s3url.value.length)"
+								class="pr-20 font-mono"
+							></p>
+							<div class="absolute inline-flex items-center gap-2 -translate-y-1/2 right-4 top-1/2">
+								<button
+									type="button"
+									@click="copyToClipboard('s3url')"
+									class="p-1.5 rounded-full hover:bg-gray-200 transition-colors relative"
+									aria-label="Copy URL"
+								>
+									<span
+										x-text="fields.s3url.copySuccess ? '✅' : '📋'"
+										x-bind:class="fields.s3url.copySuccess ? 'text-green-600' : ''"
+										class="text-lg"
+									></span>
+									<div
+										x-show="fields.s3url.copySuccess"
+										x-transition:enter="transition ease-out duration-100"
+										x-transition:leave="transition ease-in duration-100"
+										class="absolute px-2 py-1 text-xs text-white -translate-x-1/2 bg-gray-800 rounded -top-8 left-1/2 whitespace-nowrap"
+									>
+										Copied!
+									</div>
+								</button>
+								<button
+									type="button"
+									@click="fields.s3url.show = !fields.s3url.show"
+									class="p-1.5 rounded-full hover:bg-gray-200 transition-colors"
+									aria-label="Toggle URL visibility"
+								>
+									<span x-text="fields.s3url.show ? '🙈' : '👁️'" class="text-lg"></span>
+								</button>
+							</div>
+						</div>
 					</div>
 				</div>
-				<button hx-target="body" hx-post="/api/key" type="submit" class="text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-sm w-full sm:w-auto px-5 py-2.5 text-center dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800">Submit</button>
-			</form>
+				<div class="mt-4 space-x-4 text-center">
+					<button
+						@click="toggleMenu()"
+						class="px-4 py-2 text-white transition-colors bg-gray-500 rounded hover:bg-gray-900"
+					>
+						if cfg.IsEmpty() {
+							Input Config
+						} else {
+							Edit Config
+						}
+					</button>
+					<button
+						class="px-4 py-2 text-white transition-colors bg-red-500 rounded hover:bg-red-600"
+						@click="window.location.href='/'"
+					>
+						Exit
+					</button>
+				</div>
+			</div>
 		</div>
 	</main>
 }

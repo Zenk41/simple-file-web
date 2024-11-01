@@ -17,10 +17,10 @@ type S3Response struct {
 }
 
 type ConfigS3 struct {
-	S3AccessKey string `json:"s3accesskey"`
-	S3SecretKey string `json:"s3secretkey"`
-	S3Region    string `json:"s3region"`
-	S3URL       string `json:"s3url"`
+	S3AccessKey string `json:"s3accesskey" validate:"required,s3accesskey"`
+	S3SecretKey string `json:"s3secretkey" validate:"required,s3secretkey"`
+	S3Region    string `json:"s3region" validate:"required,s3region"`
+	S3URL       string `json:"s3url" validate:"required,s3url"`
 }
 
 

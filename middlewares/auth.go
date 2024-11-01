@@ -72,10 +72,11 @@ func (config *JWTConfig) generateToken(userID, authMethod, tokenType string, dur
 	return token.SignedString([]byte(config.SecretKey))
 }
 
-// IsAuthenticated middleware checks for valid access token
+// IsAuthenticated middleware checks for valid access token and handles automatic refresh
 func IsAuthenticated(config *JWTConfig) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		var tokenString string
+		var tokenMissing bool
 
 		// Check cookie first
 		if cookie := c.Cookies("access_token"); cookie != "" {
@@ -85,19 +86,42 @@ func IsAuthenticated(config *JWTConfig) fiber.Handler {
 			authHeader := c.Get("Authorization")
 			if strings.HasPrefix(authHeader, "Bearer ") {
 				tokenString = strings.TrimPrefix(authHeader, "Bearer ")
+			} else {
+				tokenMissing = true
 			}
 		}
 
-		if tokenString == "" {
-			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-				"error": "unauthorized",
-			})
+		// If token is missing, try to refresh using refresh token
+		if tokenMissing {
+			refreshToken := c.Cookies("refresh_token")
+			if refreshToken == "" {
+				return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+					"error": "unauthorized",
+				})
+			}
+
+			// Try to generate new access token using refresh token
+			newAccessToken, err := handleTokenRefresh(refreshToken, config)
+			if err != nil {
+				return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+					"error": "invalid refresh token",
+				})
+			}
+
+			// Set new access token cookie
+			cookie := createCookie("access_token", newAccessToken, config.AccessTokenDuration)
+			cookie.SameSite = "Strict"
+			cookie.Secure = true
+			c.Cookie(cookie)
+
+			tokenString = newAccessToken
 		}
 
+		// Validate token (either original or refreshed)
 		claims, err := validateToken(tokenString, config.SecretKey)
 		if err != nil {
 			if errors.Is(err, ErrTokenExpired) {
-				// Try to refresh the token
+				// Token is expired, try to refresh
 				refreshToken := c.Cookies("refresh_token")
 				if refreshToken == "" {
 					return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
@@ -112,12 +136,14 @@ func IsAuthenticated(config *JWTConfig) fiber.Handler {
 					})
 				}
 
-				// Set new access token cookie
-				c.Cookie(createCookie("access_token", newAccessToken, config.AccessTokenDuration))
+				// Set new access token cookie with secure settings
+				cookie := createCookie("access_token", newAccessToken, config.AccessTokenDuration)
+				cookie.SameSite = "Strict"
+				cookie.Secure = true
+				c.Cookie(cookie)
 
-				// Update token string for further processing
-				tokenString = newAccessToken
-				claims, err = validateToken(tokenString, config.SecretKey)
+				// Validate new token
+				claims, err = validateToken(newAccessToken, config.SecretKey)
 				if err != nil {
 					return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 						"error": "token validation failed",

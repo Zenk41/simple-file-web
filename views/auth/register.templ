@@ -152,6 +152,7 @@ templ Register() {
 						this.submitting = true;
 						this.submitError = '';
 						
+						setLoading(true);
 						try {
 							const response = await fetch('/api/auth/register', {
 								method: 'POST',
@@ -178,6 +179,7 @@ templ Register() {
 							this.submitError = error.message || 'An error occurred during registration';
 						} finally {
 							this.submitting = false;
+							setLoading(false);
 						}
 					},
 					get isLoading() {

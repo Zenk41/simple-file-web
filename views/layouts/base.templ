@@ -4,17 +4,18 @@ templ Base() {
 	<!DOCTYPE html>
 	<html lang="en">
 		<head>
-			<title>Frontend Go Template</title>
+			<title>File Manager</title>
 			<meta charset="UTF-8"/>
 			<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 			<link rel="stylesheet" href="/public/globals.css"/>
-			<script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+			// <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
 			<script src="/public/alpinejs" defer></script>
 			<script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/js/all.min.js"></script>
 			<script src="https://kit.fontawesome.com/f53f0c793d.js" crossorigin="anonymous"></script>
 			<script src="/public/flowbite.min.js" defer></script>
+			<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>💽</text></svg>"/>
 		</head>
-		<body class="flex flex-col min-h-screen antialiased" hx-ext="remove-me">
+		<body class="flex flex-col min-h-screen antialiased">
 			<div
 				x-data="{ loading: false, setLoading(value) { this.loading = value; } }"
 				@htmx:beforeSend.window="setLoading(true)"
@@ -41,17 +42,6 @@ templ Base() {
 				</div>
 			</div>
 			<script>
-            document.addEventListener('alpine:init', () => {
-                document.addEventListener('click', e => {
-                    const link = e.target.closest('a[href]:not([hx-get]):not([hx-post])');
-                    if (link) {
-                        const alpineRoot = document.querySelector('[x-data]');
-                        if (alpineRoot && alpineRoot.__x && !e.ctrlKey && !e.shiftKey && !e.metaKey && !e.altKey) {
-                            alpineRoot.__x.$data.setLoading(true);
-                        }
-                    }
-                });
-            });
 
             // Global function to set loading state
             window.setGlobalLoading = function(value) {

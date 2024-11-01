@@ -3,12 +3,12 @@ package public
 import (
 	"github.com/Zenk41/simple-file-web/views/components"
 	"github.com/Zenk41/simple-file-web/views/layouts"
+	"github.com/Zenk41/simple-file-web/models"
 )
 
-templ Index(data string, component templ.Component) {
+templ Index(user models.User, component templ.Component) {
 	@layouts.Base() {
-		@components.Header()
-		{ data }
+		@components.Header(user, true)
 		if component != nil {
 			@component
 		}
