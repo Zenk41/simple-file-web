@@ -29,6 +29,7 @@ type S3Service interface {
 	DeleteObject(ctx context.Context, bucket, path string) error
 	RenameObject(ctx context.Context, bucket, oldPath, newPath string) error
 	UploadFile(ctx context.Context, bucket, basePath string, file *multipart.FileHeader) error
+	ReadConfig(ctx context.Context) models.ConfigS3
 }
 type s3Service struct {
 	downloadExpiration time.Duration
@@ -475,4 +476,8 @@ func normalizePath(p string) string {
 	p = strings.TrimPrefix(p, "/")
 
 	return p
+}
+
+func (ss *s3Service) ReadConfig(ctx context.Context) models.ConfigS3 {
+	return S3Data
 }
