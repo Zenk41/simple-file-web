@@ -1,0 +1,15 @@
+package public_link
+
+import (
+	"github.com/Zenk41/simple-file-web/models"
+	"github.com/Zenk41/simple-file-web/views/components"
+	"github.com/Zenk41/simple-file-web/views/layouts"
+)
+
+templ Index(user models.User, links []models.PublicLink) {
+	@layouts.Base() {
+		@components.Header(user, true)
+    @components.PublicLinkList(links)
+		@components.Footer()
+	}
+}
