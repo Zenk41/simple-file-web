@@ -1,0 +1,266 @@
+package components
+
+import "github.com/Zenk41/simple-file-web/models"
+
+templ PublicLinkList(links []models.PublicLink) {
+	<main class="flex-grow w-full max-w-5xl p-6 mx-auto">
+		<div class="overflow-hidden bg-white border border-gray-200 rounded-lg shadow-md rounded-xl">
+			<div class="overflow-x-auto">
+				<table class="w-full table-fixed">
+					<thead>
+						<tr class="border-b border-gray-100">
+							<th class="w-16 px-6 py-3 text-xs font-medium text-left text-gray-500">ID</th>
+							<th class="w-40 px-6 py-3 text-xs font-medium text-left text-gray-500">Link</th>
+							<th class="w-40 px-6 py-3 text-xs font-medium text-left text-gray-500">Bucket</th>
+							<th class="w-40 px-6 py-3 text-xs font-medium text-left text-gray-500">Path</th>
+							<th class="w-32 px-6 py-3 text-xs font-medium text-left text-gray-500">Created</th>
+							<th class="w-32 px-6 py-3 text-xs font-medium text-left text-gray-500">Updated</th>
+							<th class="w-24 px-6 py-3 text-xs font-medium text-left text-gray-500">Actions</th>
+						</tr>
+					</thead>
+					<tbody class="divide-y divide-gray-50">
+						if len(links) > 0 {
+							for _, link := range links {
+								@PublicLinkItem(link)
+							}
+						}
+					</tbody>
+				</table>
+			</div>
+		</div>
+	</main>
+}
+
+templ PublicLinkItem(link models.PublicLink) {
+	<tr class="transition-colors group hover:bg-gray-50/50">
+		<td class="px-6 py-4 text-sm text-center text-gray-600 truncate">{ link.ID }</td>
+		<td class="px-6 py-4 text-center truncate">
+			<a href={ templ.SafeURL("/p/" + link.Link) } class="text-sm text-gray-600 transition-colors hover:text-blue-500">
+				{ link.Link }
+			</a>
+		</td>
+		<td class="px-6 py-4 text-sm text-center text-gray-600 truncate">{ link.RealRootBucket }</td>
+		<td class="px-6 py-4 text-sm text-center text-gray-600 truncate">{ link.RealRootPath }</td>
+		<td class="px-6 py-4 text-sm text-center text-gray-600 whitespace-nowrap">{ link.CreatedAt.Format("Jan 02, 2006") }</td>
+		<td class="px-6 py-4 text-sm text-center text-gray-600 whitespace-nowrap">{ link.UpdatedAt.Format("Jan 02, 2006") }</td>
+		<td class="px-6 py-4 text-center">
+			<div class="flex items-center justify-center gap-2">
+				@PublicLinkEdit()
+				@PublicLinkDelete()
+			</div>
+		</td>
+	</tr>
+}
+
+templ PublicLinkEdit() {
+	<div x-data="{ isOpen: false }">
+		<!-- Trigger Button -->
+		<button
+			@click="isOpen = true"
+			class="p-1.5 rounded-lg text-gray-400 hover:text-blue-500 hover:bg-blue-50 transition-all"
+		>
+			<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+			</svg>
+		</button>
+		<!-- Modal Backdrop -->
+		<div
+			x-show="isOpen"
+			x-transition:enter="transition ease-out duration-300"
+			x-transition:enter-start="opacity-0"
+			x-transition:enter-end="opacity-100"
+			x-transition:leave="transition ease-in duration-200"
+			x-transition:leave-start="opacity-100"
+			x-transition:leave-end="opacity-0"
+			class="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50"
+			style="display: none;"
+		>
+			<!-- Modal Content -->
+			<div
+				@click.away="isOpen = false"
+				x-show="isOpen"
+				x-transition:enter="transition ease-out duration-300"
+				x-transition:enter-start="opacity-0 transform scale-90"
+				x-transition:enter-end="opacity-100 transform scale-100"
+				x-transition:leave="transition ease-in duration-200"
+				x-transition:leave-start="opacity-100 transform scale-100"
+				x-transition:leave-end="opacity-0 transform scale-90"
+				class="w-full max-w-md p-6 mx-4 bg-white rounded-lg shadow-xl"
+			>
+				<!-- Modal Header -->
+				<div class="flex items-center justify-between mb-4">
+					<h3 class="text-lg font-semibold text-gray-900">Modal Title</h3>
+					<button
+						@click="isOpen = false"
+						class="text-gray-400 transition duration-200 hover:text-gray-600"
+					>
+						<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+						</svg>
+					</button>
+				</div>
+				<!-- Modal Body -->
+				<div class="mb-4 text-gray-600">
+					<p>This is the modal content. You can put any HTML content here.</p>
+				</div>
+				<!-- Modal Footer -->
+				<div class="flex justify-end space-x-2">
+					<button
+						@click="isOpen = false"
+						class="px-4 py-2 font-medium text-gray-500 transition duration-200 rounded-lg hover:text-gray-700"
+					>
+						Cancel
+					</button>
+					<button
+						@click="isOpen = false"
+						class="px-4 py-2 font-medium text-white transition duration-200 bg-blue-500 rounded-lg hover:bg-blue-600"
+					>
+						Confirm
+					</button>
+				</div>
+			</div>
+		</div>
+	</div>
+}
+
+templ PublicLinkDelete() {
+	<div x-data="{ isOpen: false }">
+		<!-- Trigger Button -->
+		<button
+			@click="isOpen = true"
+			class="p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-all"
+		>
+			<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+			</svg>
+		</button>
+		<!-- Modal Backdrop -->
+		<div
+			x-show="isOpen"
+			x-transition:enter="transition ease-out duration-300"
+			x-transition:enter-start="opacity-0"
+			x-transition:enter-end="opacity-100"
+			x-transition:leave="transition ease-in duration-200"
+			x-transition:leave-start="opacity-100"
+			x-transition:leave-end="opacity-0"
+			class="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50"
+			style="display: none;"
+		>
+			<!-- Modal Content -->
+			<div
+				@click.away="isOpen = false"
+				x-show="isOpen"
+				x-transition:enter="transition ease-out duration-300"
+				x-transition:enter-start="opacity-0 transform scale-90"
+				x-transition:enter-end="opacity-100 transform scale-100"
+				x-transition:leave="transition ease-in duration-200"
+				x-transition:leave-start="opacity-100 transform scale-100"
+				x-transition:leave-end="opacity-0 transform scale-90"
+				class="w-full max-w-md p-6 mx-4 bg-white rounded-lg shadow-xl"
+			>
+				<!-- Modal Header -->
+				<div class="flex items-center justify-between mb-4">
+					<h3 class="text-lg font-semibold text-gray-900">Modal Title</h3>
+					<button
+						@click="isOpen = false"
+						class="text-gray-400 transition duration-200 hover:text-gray-600"
+					>
+						<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+						</svg>
+					</button>
+				</div>
+				<!-- Modal Body -->
+				<div class="mb-4 text-gray-600">
+					<p>This is the modal content. You can put any HTML content here.</p>
+				</div>
+				<!-- Modal Footer -->
+				<div class="flex justify-end space-x-2">
+					<button
+						@click="isOpen = false"
+						class="px-4 py-2 font-medium text-gray-500 transition duration-200 rounded-lg hover:text-gray-700"
+					>
+						Cancel
+					</button>
+					<button
+						@click="isOpen = false"
+						class="px-4 py-2 font-medium text-white transition duration-200 bg-blue-500 rounded-lg hover:bg-blue-600"
+					>
+						Confirm
+					</button>
+				</div>
+			</div>
+		</div>
+	</div>
+}
+
+templ PublikLinkCreate() {
+	<div x-data="{ isOpen: false }">
+		<!-- Trigger Button -->
+		<button
+			@click="isOpen = true"
+			class="p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-all"
+		>
+			<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+			</svg>
+		</button>
+		<!-- Modal Backdrop -->
+		<div
+			x-show="isOpen"
+			x-transition:enter="transition ease-out duration-300"
+			x-transition:enter-start="opacity-0"
+			x-transition:enter-end="opacity-100"
+			x-transition:leave="transition ease-in duration-200"
+			x-transition:leave-start="opacity-100"
+			x-transition:leave-end="opacity-0"
+			class="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50"
+			style="display: none;"
+		>
+			<!-- Modal Content -->
+			<div
+				@click.away="isOpen = false"
+				x-show="isOpen"
+				x-transition:enter="transition ease-out duration-300"
+				x-transition:enter-start="opacity-0 transform scale-90"
+				x-transition:enter-end="opacity-100 transform scale-100"
+				x-transition:leave="transition ease-in duration-200"
+				x-transition:leave-start="opacity-100 transform scale-100"
+				x-transition:leave-end="opacity-0 transform scale-90"
+				class="w-full max-w-md p-6 mx-4 bg-white rounded-lg shadow-xl"
+			>
+				<!-- Modal Header -->
+				<div class="flex items-center justify-between mb-4">
+					<h3 class="text-lg font-semibold text-gray-900">Modal Title</h3>
+					<button
+						@click="isOpen = false"
+						class="text-gray-400 transition duration-200 hover:text-gray-600"
+					>
+						<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+						</svg>
+					</button>
+				</div>
+				<!-- Modal Body -->
+				<div class="mb-4 text-gray-600">
+					<p>This is the modal content. You can put any HTML content here.</p>
+				</div>
+				<!-- Modal Footer -->
+				<div class="flex justify-end space-x-2">
+					<button
+						@click="isOpen = false"
+						class="px-4 py-2 font-medium text-gray-500 transition duration-200 rounded-lg hover:text-gray-700"
+					>
+						Cancel
+					</button>
+					<button
+						@click="isOpen = false"
+						class="px-4 py-2 font-medium text-white transition duration-200 bg-blue-500 rounded-lg hover:bg-blue-600"
+					>
+						Confirm
+					</button>
+				</div>
+			</div>
+		</div>
+	</div>
+}
