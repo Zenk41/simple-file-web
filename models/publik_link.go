@@ -21,4 +21,11 @@ type Security struct {
 	IsPermitted bool
 }
 
-
+type PayloadPublicLink struct {
+	Link           string `json:"link" validate:"required, link"`
+	RealRootBucket string `json:"real_root_bucket" validate:"required, bucket"`
+	RealRootPath   string `json:"real_root_path"`
+	AccessKey      string `json:"acccess_key"`
+	AccessType     string `json:"access_type"`
+	Privacy        string `json:"privacy"`
+}
