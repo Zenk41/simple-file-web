@@ -55,10 +55,12 @@ func main() {
 
 	authValidation := validation.NewAuthValidator()
 	s3Validation := validation.NewS3Validator()
+	publicLinkValidation := validation.NewPublicLinkValidator()
 
 	authHandler := handlers.NewAuthHandler(logger, authService, authValidation, jwtConfig)
 	pageHandler := handlers.NewPageHandler(s3Service, authService, logger, publikLinkService)
 	apiHandler := handlers.NewApiHandler(s3Service, logger, s3Validation)
+	publicLinkHandler := handlers.NewPublicLinkHandler(publikLinkService, authService, logger, publicLinkValidation)
 
 	app.Use(middlewares.StructuredLogger())
 
@@ -67,10 +69,11 @@ func main() {
 	app.Static("/public/alpinejs", "./node_modules/alpinejs/dist/cdn.min.js")
 
 	routeInit := routes.HandlerList{
-		PageHandler: pageHandler,
-		ApiHandler:  apiHandler,
-		AuthHandler: authHandler,
-		JwtConfig:   jwtConfig,
+		PageHandler:       pageHandler,
+		ApiHandler:        apiHandler,
+		AuthHandler:       authHandler,
+		PublicLinkHandler: publicLinkHandler,
+		JwtConfig:         jwtConfig,
 	}
 
 	// Register routes

@@ -93,13 +93,11 @@ func (ah *apiHandler) UploadObject(ctx *fiber.Ctx) error {
 }
 
 func (ah *apiHandler) PostFormKeyS3(ctx *fiber.Ctx) error {
-	if !ah.s3Service.IsS3ConfigEmpty() {
-		return ctx.RedirectBack("/")
-	}
 
 	payload := new(models.ConfigS3)
 
 	if err := ctx.BodyParser(payload); err != nil {
+		ah.logger.Error("Invalid request body", slog.String("error", err.Error()))
 		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"status":  "error",
 			"message": "Invalid request body",
@@ -108,21 +106,19 @@ func (ah *apiHandler) PostFormKeyS3(ctx *fiber.Ctx) error {
 	}
 
 	if err := ah.validator.Struct(payload); err != nil {
+		ah.logger.Error("Validation failed", slog.String("error", err.Error()))
 		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"status":  "error",
 			"message": "Validation failed",
 			"error":   err.Error(),
 		})
 	}
-	
 
 	str := ah.s3Service.InputS3Config(*payload)
 	ah.logger.Info("PostFormKeyS3: S3 config set", slog.String("config", str))
-
 	return ctx.Status(fiber.StatusOK).JSON(fiber.Map{
 		"status":  "success",
 		"message": "success filling s3 config",
-		"redirect":   "/",
 	})
 }
 

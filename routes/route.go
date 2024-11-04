@@ -7,10 +7,11 @@ import (
 )
 
 type HandlerList struct {
-	PageHandler handlers.PageHandler
-	ApiHandler  handlers.ApiHandler
-	AuthHandler handlers.AuthHandler
-	JwtConfig   *middlewares.JWTConfig
+	PageHandler       handlers.PageHandler
+	ApiHandler        handlers.ApiHandler
+	AuthHandler       handlers.AuthHandler
+	PublicLinkHandler handlers.PublicLinkHandler
+	JwtConfig         *middlewares.JWTConfig
 }
 
 func (hl *HandlerList) RoutesRegister(app *fiber.App) {
@@ -48,6 +49,11 @@ func (hl *HandlerList) RoutesRegister(app *fiber.App) {
 	api.Post("/object-rename", hl.ApiHandler.RenameObject)
 	api.Post("/upload", hl.ApiHandler.UploadObject)
 	api.Get("/downloads", hl.ApiHandler.DownloadObjectsAsZip)
+
+	pLink := api.Group("/p")
+	pLink.Put("/:id", hl.PublicLinkHandler.UpdatePublicLink)
+	pLink.Post("/", hl.PublicLinkHandler.CreatePublicLink)
+	pLink.Delete("/:id", hl.PublicLinkHandler.DeletePublicLink)
 
 	// pages bucket
 	bucket := app.Group("/b")

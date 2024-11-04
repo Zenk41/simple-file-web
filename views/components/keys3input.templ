@@ -151,7 +151,7 @@ templ InputKeysS3(cfg models.ConfigS3) {
 									headers: {
 										'Content-Type' : 'application/json',
 									},
-									body: JSON.stringfy({
+									body: JSON.stringify({
 										s3accesskey: this.fields.s3accesskey.value,
 										s3secretkey: this.fields.s3secretkey.value,
 										s3region: this.fields.s3region.value,
@@ -161,20 +161,26 @@ templ InputKeysS3(cfg models.ConfigS3) {
 								});
 								const data = await response.json();
 
-								if (!respponse.ok) {
+								if (!response.ok) {
 									throw new Error(data.message || 'Input s3 configuration failed');
 								}
-
-								window.location.href = data.redirect;
+								window.dispatchEvent(new CustomEvent('notify', { 
+										detail: { 
+												type: data.status, 
+												message: data.message, 
+										}
+								}));
 							
 							} catch (error) {
 								this.submitError = error.message || 'An error occurred during submitting s3 config';
 
-								console.error('config error:', error);
-								this.$dispatch('show-toast', {
-									message : this.submitError,
-									type: 'error'
-								});
+								window.dispatchEvent(new CustomEvent('notify', { 
+									detail: { 
+											type: data.status, 
+											message: data.message + " : "+ data.error 
+									}
+							}));
+							
 							} finally {
 								this.submitting = false;
 								setLoading(false);
