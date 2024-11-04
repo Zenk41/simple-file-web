@@ -1,7 +1,9 @@
 package handlers
 
 import (
+	"math"
 	"net/url"
+	"strconv"
 	"strings"
 
 	"log/slog"
@@ -201,6 +203,12 @@ func (ph *pageHandler) PublikLinkList(ctx *fiber.Ctx) error {
 		return ctx.Redirect("/settings/key")
 	}
 
+	pageStr := ctx.Query("page")
+	page, err := strconv.Atoi(pageStr)
+	if err != nil || page < 1 {
+		page = 1
+	}
+
 	user, err := ph.authService.ReadUser()
 	if err != nil {
 		ph.logger.Info("cannot read user", "message", err)
@@ -209,6 +217,19 @@ func (ph *pageHandler) PublikLinkList(ctx *fiber.Ctx) error {
 
 	links := ph.pubLink.ReadPublicLinks()
 
-	return Render(ctx, public_link.Index(user,links))
-}
+	const itemsPerPage = 10
+	totalItems := len(links)
+	totalPages := int(math.Ceil(float64(totalItems) / float64(itemsPerPage)))
+	// Calculate start and end index for current page
+	startIndex := (page - 1) * itemsPerPage
+	endIndex := min(startIndex+itemsPerPage, totalItems)
+	// Get current page links
+	currentLinks := links[startIndex:endIndex]
 
+	message := ctx.Query("message")
+	if message != "" {
+		return Render(ctx, public_link.Index(models.Alert{Type: "success", Message: message}, user, currentLinks, page, startIndex, endIndex, totalPages, totalItems))
+	}
+
+	return Render(ctx, public_link.Index(models.Alert{}, user, currentLinks, page, startIndex, endIndex, totalPages, totalItems))
+}
