@@ -76,7 +76,7 @@ func (plh *publicLinkHandler) CreatePublicLink(ctx *fiber.Ctx) error {
 }
 
 func (plh *publicLinkHandler) DeletePublicLink(ctx *fiber.Ctx) error {
-	id := ctx.Query("id")
+	id := ctx.Params("id")
 	if id == "" {
 		plh.logger.Error("id cannot be empty", slog.String("error", "id is empty"))
 		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
@@ -93,6 +93,7 @@ func (plh *publicLinkHandler) DeletePublicLink(ctx *fiber.Ctx) error {
 			"error":   err.Error(),
 		})
 	}
+	plh.logger.Info("success", slog.String("id", id))
 	return ctx.Status(fiber.StatusOK).JSON(fiber.Map{
 		"status":  "success",
 		"message": "success delete a public link with id" + id,
@@ -100,7 +101,7 @@ func (plh *publicLinkHandler) DeletePublicLink(ctx *fiber.Ctx) error {
 }
 
 func (plh *publicLinkHandler) UpdatePublicLink(ctx *fiber.Ctx) error {
-	id := ctx.Query("id")
+	id := ctx.Params("id")
 	if id == "" {
 		plh.logger.Error("id cannot be empty", slog.String("error", "id is empty"))
 		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
