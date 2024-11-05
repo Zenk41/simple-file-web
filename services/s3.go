@@ -30,6 +30,7 @@ type S3Service interface {
 	RenameObject(ctx context.Context, bucket, oldPath, newPath string) error
 	UploadFile(ctx context.Context, bucket, basePath string, file *multipart.FileHeader) error
 	ReadConfig(ctx context.Context) models.ConfigS3
+	ListFolder(ctx context.Context, bucket string, prefix string) ([]string, error)
 }
 type s3Service struct {
 	downloadExpiration time.Duration
@@ -57,7 +58,7 @@ func (ss *s3Service) ListBucket(ctx context.Context) ([]string, error) {
 func (ss *s3Service) UploadFile(ctx context.Context, bucket, basePath string, file *multipart.FileHeader) error {
 	cfg, err := LoadS3Config(S3Data)
 	if err != nil {
-			return fmt.Errorf("failed to load config: %w", err)
+		return fmt.Errorf("failed to load config: %w", err)
 	}
 	s3Utils := utils.NewS3Utils(cfg, ss.logger)
 
@@ -68,16 +69,16 @@ func (ss *s3Service) UploadFile(ctx context.Context, bucket, basePath string, fi
 	ss.logger.Debug("Cleaned base path", "basePath", basePath)
 
 	if strings.Contains(basePath, "..") {
-			ss.logger.Error("Invalid path detected: path traversal attempt")
-			return fmt.Errorf("invalid base path")
+		ss.logger.Error("Invalid path detected: path traversal attempt")
+		return fmt.Errorf("invalid base path")
 	}
 
 	// Open the file
 	ss.logger.Debug("Opening file", "filename", file.Filename)
 	src, err := file.Open()
 	if err != nil {
-			ss.logger.Error("Failed to open file", "error", err)
-			return fmt.Errorf("failed to open file: %w", err)
+		ss.logger.Error("Failed to open file", "error", err)
+		return fmt.Errorf("failed to open file: %w", err)
 	}
 	defer src.Close()
 
@@ -92,21 +93,20 @@ func (ss *s3Service) UploadFile(ctx context.Context, bucket, basePath string, fi
 	// Get the content type using the provided function
 	contentType, err := getFileContentType(file.Filename)
 	if err != nil {
-			ss.logger.Error("Failed to determine content type", "error", err)
-			return fmt.Errorf("failed to determine content type: %w", err)
+		ss.logger.Error("Failed to determine content type", "error", err)
+		return fmt.Errorf("failed to determine content type: %w", err)
 	}
 
 	// Use the utility to upload the file
 	err = s3Utils.UploadObject(ctx, bucket, fullPath, src, contentType)
 	if err != nil {
-			ss.logger.Error("Failed to upload object", "error", err)
-			return fmt.Errorf("failed to upload object: %w", err)
+		ss.logger.Error("Failed to upload object", "error", err)
+		return fmt.Errorf("failed to upload object: %w", err)
 	}
 
 	ss.logger.Info("File uploaded successfully")
 	return nil
 }
-
 
 func (ss *s3Service) InputS3Config(cfg models.ConfigS3) string {
 	if cfg.IsEmpty() {
@@ -143,6 +143,23 @@ func (ss *s3Service) ListPageFiles(ctx context.Context, bucket string, prefix st
 	}
 
 	return files, folders, nil
+}
+
+func (ss *s3Service) ListFolder(ctx context.Context, bucket string, prefix string) ([]string, error) {
+	cfg, err := LoadS3Config(S3Data)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load config: %w", err)
+	}
+	s3Utils := utils.NewS3Utils(cfg, ss.logger)
+
+	// Use ListFilesAndFolders to get both files and folders.
+	_, folders, err := s3Utils.ListFilesAndFoldersRecursively(ctx, bucket, prefix)
+	if err != nil {
+		ss.logger.Error("Failed to list  folders", "error", err)
+		return nil, fmt.Errorf("failed to list  folders: %w", err)
+	}
+
+	return folders, nil
 }
 
 func (ss *s3Service) GetDownloadObject(ctx context.Context, bucket string, prefix string) (string, error) {
