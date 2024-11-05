@@ -11,7 +11,11 @@ func NewPublicLinkValidator() *validator.Validate {
 
 	validate.RegisterValidation("link", linkValidator)
 	validate.RegisterValidation("bucket", bucketValidator)
-	
+	validate.RegisterValidation("path", pathValidator)
+	validate.RegisterValidation("accesstype", accessTypeValidator)
+	validate.RegisterValidation("accesskey", accessKeyValidator)
+	validate.RegisterValidation("privacy", privacyValidator)
+
 	return validate
 }
 
@@ -53,4 +57,45 @@ func bucketValidator(fl validator.FieldLevel) bool {
 	}
 
 	return true
+}
+
+func pathValidator(fl validator.FieldLevel) bool {
+	path := fl.Field().String()
+	matched, _ := regexp.MatchString(`^(\/?[a-z_-]+\/)+$`, path)
+	return matched
+}
+
+func accessTypeValidator(fl validator.FieldLevel) bool {
+	accessType := fl.Field().String()
+
+	// Define regex to match exact values
+	regex := `^(FULL_ACCESS|MODIFY|EDIT|VIEW_ONLY|CREATE_ONLY)$`
+	matched, err := regexp.MatchString(regex, accessType)
+	if err != nil {
+		return false
+	}
+
+	return matched
+}
+
+func accessKeyValidator(fl validator.FieldLevel) bool {
+	accessKey := fl.Field().String()
+	regex := `^(\/?[a-zA-Z0-9]+\/?)+$`
+	matched, err := regexp.MatchString(regex, accessKey)
+	if err != nil {
+		return false
+	}
+
+	return matched
+}
+
+func privacyValidator(fl validator.FieldLevel) bool {
+	privacy := fl.Field().String()
+	regex := `^(PUBLIC|PRIVATE)$`
+	matched, err := regexp.MatchString(regex, privacy)
+	if err != nil {
+		return false
+	}
+
+	return matched
 }
