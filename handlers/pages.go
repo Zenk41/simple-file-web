@@ -226,10 +226,22 @@ func (ph *pageHandler) PublikLinkList(ctx *fiber.Ctx) error {
 	// Get current page links
 	currentLinks := links[startIndex:endIndex]
 
-	message := ctx.Query("message")
-	if message != "" {
-		return Render(ctx, public_link.Index(models.Alert{Type: "success", Message: message}, user, currentLinks, page, startIndex, endIndex, totalPages, totalItems))
+	bucketData := make(map[string][]string)
+
+	// List all buckets
+	buckets, _ := ph.s3Service.ListBucket(ctx.Context())
+	for _, bucket := range buckets {
+		folders, err := ph.s3Service.ListFolder(ctx.Context(), bucket, "")
+		if err != nil {
+			continue
+		}
+		bucketData[bucket] = folders
 	}
 
-	return Render(ctx, public_link.Index(models.Alert{}, user, currentLinks, page, startIndex, endIndex, totalPages, totalItems))
+	message := ctx.Query("message")
+	if message != "" {
+		return Render(ctx, public_link.Index(bucketData, models.Alert{Type: "success", Message: message}, user, currentLinks, page, startIndex, endIndex, totalPages, totalItems))
+	}
+
+	return Render(ctx, public_link.Index(bucketData, models.Alert{}, user, currentLinks, page, startIndex, endIndex, totalPages, totalItems))
 }

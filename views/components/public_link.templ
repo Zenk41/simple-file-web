@@ -1,13 +1,80 @@
 package components
 
 import (
+	"encoding/json"
 	"fmt"
 	"github.com/Zenk41/simple-file-web/models"
 	"strconv"
 )
 
-templ PublicLinkList(currentLinks []models.PublicLink, currentPage int, startIndex int, endIndex int, totalPages int, totalItems int) {
-	<main class="flex-grow w-full max-w-5xl p-4 mx-auto space-y-4">
+templ PublicLinkList(buckets map[string][]string, currentLinks []models.PublicLink, currentPage int, startIndex int, endIndex int, totalPages int, totalItems int) {
+	<main
+		class="flex-grow w-full max-w-5xl p-4 mx-auto space-y-4"
+		x-data="{
+			editModal: {
+				isOpen: false,
+				fields: {
+					id: '',
+					link: '',
+					bucket: '',
+					path: '',
+					accesskey:'',
+					accesstype: '',
+					privacy: '',
+				},
+				initDataEdit(id, link, bucket, path, accesskey,accesstype,privacy) {
+					this.fields.id = id;
+					this.fields.link = link;
+					this.fields.bucket = bucket;
+					this.fields.path = path;
+					this.fields.accesskey = accesskey;
+					this.fields.accesstype = accesstype;
+					this.fields.privacy = privacy;
+					this.isOpen = true;
+      	},
+				closeModal() {
+					this.isOpen = false;
+					this.fields = {
+						id: '',
+						link: '',
+						bucket: '',
+						path: '',
+						acccesskey:'',
+						accesstype: '',
+						privacy: '',
+					};
+      	}
+			},
+			deleteModal: {
+				isOpen: false,
+				fields: {
+					id: '',
+					link: '',
+					bucket: '',
+					path: '',
+				},
+      init() {
+        this.closeModal();
+      },
+      openModal(id, link, bucket, path) {
+        this.fields.id = id;
+        this.fields.link = link;
+        this.fields.bucket = bucket;
+        this.fields.path = path;
+        this.isOpen = true;
+      },
+      closeModal() {
+        this.isOpen = false;
+        this.fields = {
+          id: '',
+          link: '',
+          bucket: '',
+          path: '',
+        };
+      }
+    }
+  }"
+	>
 		<div class="bg-white border border-gray-200 rounded-lg shadow-md">
 			<!-- Desktop view -->
 			<div class="hidden overflow-x-auto md:block">
@@ -38,8 +105,8 @@ templ PublicLinkList(currentLinks []models.PublicLink, currentPage int, startInd
 								<td class="px-4 py-3 text-sm text-gray-600 whitespace-nowrap">{ link.UpdatedAt.Format("Jan 02, 2006") }</td>
 								<td class="px-4 py-3">
 									<div class="flex items-center gap-2">
-										@PublicLinkEdit()
-										@PublicLinkDelete()
+										@PublicLinkEditButton(link)
+										@PublicLinkDeleteButton(link)
 									</div>
 								</td>
 							</tr>
@@ -78,8 +145,8 @@ templ PublicLinkList(currentLinks []models.PublicLink, currentPage int, startInd
 							<span class="text-sm text-gray-600">{ link.UpdatedAt.Format("Jan 02, 2006") }</span>
 						</div>
 						<div class="flex justify-end gap-2 pt-2">
-							@PublicLinkEdit()
-							@PublicLinkDelete()
+							@PublicLinkEditButton(link)
+							@PublicLinkDeleteButton(link)
 						</div>
 					</div>
 				}
@@ -160,7 +227,7 @@ templ PublicLinkList(currentLinks []models.PublicLink, currentPage int, startInd
 								} else {
 									<a
 										href={ templ.SafeURL(fmt.Sprintf("?page=%d", i)) }
-										class="relative inline-flex items-center px-4 py-2 text-sm font-semibold text-gray-900 bg-white border border-gray-300 hover:bg-gray-50"
+										class="relative inline-flex items-center px-4 py-2 text-sm font-semibold text-gray-900 bg-white border border-gray-300 hover:bg-gray-200"
 									>
 										{ strconv.Itoa(i) }
 									</a>
@@ -190,15 +257,9 @@ templ PublicLinkList(currentLinks []models.PublicLink, currentPage int, startInd
 				</div>
 			</div>
 		}
+		@PublicLinkEditModal(buckets)
+		@PublicLinkDeleteModal()
 	</main>
-}
-
-// Helper function for min value
-func min(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
 }
 
 templ PublicLinkItem(link models.PublicLink) {
@@ -215,150 +276,607 @@ templ PublicLinkItem(link models.PublicLink) {
 		<td class="px-6 py-4 text-sm text-center text-gray-600 whitespace-nowrap">{ link.UpdatedAt.Format("Jan 02, 2006") }</td>
 		<td class="px-6 py-4 text-center">
 			<div class="flex items-center justify-center gap-2">
-				@PublicLinkEdit()
-				@PublicLinkDelete()
+				@PublicLinkEditButton(link)
+				@PublicLinkDeleteButton(link)
 			</div>
 		</td>
 	</tr>
 }
 
-templ PublicLinkEdit() {
-	<div x-data="{ isOpen: false }">
-		<!-- Trigger Button -->
-		<button
-			@click="isOpen = true"
-			class="p-1.5 rounded-lg text-gray-400 hover:text-black hover:bg-black transition-all"
-		>
-			<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
-			</svg>
-		</button>
-		<!-- Modal Backdrop -->
+/**
+ * Public Edit Button Component Documentation
+ *
+ * Prerequisites:
+ * 1. Initialize x-data structure:
+ *    x-data = {
+ *      EditModal: {
+ *        isOpen: false
+ *      },
+ *      DeleteModal: {
+ *        isOpen: false,
+ *        id: ''
+ *      },
+ *      editFields: {
+ *        id: '',
+ *        link: '',
+ *        bucket: '',
+ *        path: ''
+ *      }
+ *    }
+ *
+ * 2. Add x-show="isOpen" to your modal element
+ *
+ * 3. Define the initDataEdit function:
+ *    initDataEdit({id, link, bucket, path}) {
+ *      this.editFields.id = id;
+ *      this.editFields.link = link;
+ *      this.editFields.bucket = bucket;
+ *      this.editFields.path = path;
+ *      this.isOpen = true;
+ *    }
+ *
+ * Usage:
+ * Button implementation:
+ * @click="initDataEdit(id, link, bucket, path)"
+ * or
+ * @click="initDataEdit(id, link, bucket, path);isOpen = true;"
+ *
+ * Example Implementation:
+ * editModal: {
+ *   isOpen: false,
+ *   fields: {
+ *     id: '',
+ *     link: '',
+ *     bucket: '',
+ *     path: '',
+ *     listLink: ''
+ *   },
+ *   initDataEdit(id, link, bucket, path) {
+ *     this.fields.id = id;
+ *     this.fields.link = link;
+ *     this.fields.bucket = bucket;
+ *     this.fields.path = path;
+ *     this.isOpen = true;
+ *   },
+ *   closeModal() {
+ *     this.isOpen = false;
+ *     this.fields = {
+ *       id: '',
+ *       link: '',
+ *       bucket: '',
+ *       path: '',
+ *       listLink: ''
+ *     };
+ *   }
+ * }
+ */
+
+templ PublicLinkEditButton(link models.PublicLink) {
+	<button
+		@click={ `editModal.initDataEdit('` + link.ID + `' ,'` + link.Link + `','` + link.RealRootBucket + `','` + link.RealRootPath + `/','` + link.AccessKey + `','` + link.AccessType + `','` + link.Privacy + `')` }
+		class="p-1.5 rounded-lg text-gray-400 hover:text-black hover:bg-gray-200 transition-all"
+	>
+		<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+			<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+		</svg>
+	</button>
+}
+
+func toJSON(v interface{}) string {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return "{}"
+	}
+	return string(b)
+}
+
+templ PublicLinkEditModal(buckets map[string][]string) {
+	// 	<!-- Modal Backdrop -->
+	<div
+		x-show="editModal.isOpen"
+		x-transition:enter="transition ease-out duration-300"
+		x-transition:enter-start="opacity-0"
+		x-transition:enter-end="opacity-100"
+		x-transition:leave="transition ease-in duration-200"
+		x-transition:leave-start="opacity-100"
+		x-transition:leave-end="opacity-0"
+		class="fixed inset-0 flex items-center justify-center overflow-y-auto bg-black bg-opacity-50"
+		style="display: none;"
+	>
+		<!-- Modal Content -->
 		<div
-			x-show="isOpen"
+			@click.away="editModal.closeModal()"
+			x-show="editModal.isOpen"
 			x-transition:enter="transition ease-out duration-300"
-			x-transition:enter-start="opacity-0"
-			x-transition:enter-end="opacity-100"
+			x-transition:enter-start="opacity-0 transform scale-90"
+			x-transition:enter-end="opacity-100 transform scale-100"
 			x-transition:leave="transition ease-in duration-200"
-			x-transition:leave-start="opacity-100"
-			x-transition:leave-end="opacity-0"
-			class="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50"
-			style="display: none;"
+			x-transition:leave-start="opacity-100 transform scale-100"
+			x-transition:leave-end="opacity-0 transform scale-90"
+			class="w-full max-w-md p-6 mx-4 my-8 bg-white rounded-lg shadow-xl"
 		>
-			<!-- Modal Content -->
-			<div
-				@click.away="isOpen = false"
-				x-show="isOpen"
-				x-transition:enter="transition ease-out duration-300"
-				x-transition:enter-start="opacity-0 transform scale-90"
-				x-transition:enter-end="opacity-100 transform scale-100"
-				x-transition:leave="transition ease-in duration-200"
-				x-transition:leave-start="opacity-100 transform scale-100"
-				x-transition:leave-end="opacity-0 transform scale-90"
-				class="w-full max-w-md p-6 mx-4 bg-white rounded-lg shadow-xl"
-			>
-				<!-- Modal Header -->
-				<div class="flex items-center justify-between mb-4">
-					<h3 class="text-lg font-semibold text-gray-900">Modal Title</h3>
-					<button
-						@click="isOpen = false"
-						class="text-gray-400 transition duration-200 hover:text-gray-600"
-					>
-						<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-						</svg>
-					</button>
-				</div>
-				<!-- Modal Body -->
-				<div class="mb-4 text-gray-600">
-					<p>This is the modal content. You can put any HTML content here.</p>
-				</div>
-				<!-- Modal Footer -->
-				<div class="flex justify-end space-x-2">
-					<button
-						@click="isOpen = false"
-						class="px-4 py-2 font-medium text-gray-500 transition duration-200 rounded-lg hover:text-gray-700"
-					>
-						Cancel
-					</button>
-					<button
-						@click="isOpen = false"
-						class="px-4 py-2 font-medium text-white transition duration-200 bg-black rounded-lg hover:bg-black"
-					>
-						Confirm
-					</button>
-				</div>
+			<!-- Modal Header -->
+			<div class="sticky top-0 flex items-center justify-between mb-4 bg-white">
+				<h3 class="text-lg font-semibold text-gray-900 ">Edit Publik Link with ID : <span x-text="editModal.fields.id"></span> </h3>
+				<button
+					@click="editModal.closeModal()"
+					class="text-gray-400 transition duration-200 hover:text-gray-600"
+				>
+					<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+					</svg>
+				</button>
+			</div>
+			<!-- Modal Body -->
+			<div class="p-4 mb-4 overflow-auto text-gray-600 max-h-80">
+				<form
+					x-data={ `{
+						fields: {
+							link: {
+								value: '',
+								loading: false,
+								valid: true,
+								error: '',
+								validate(){
+									this.loading = true;
+									setTimeout(() => {
+										if (!/^[a-z][a-z0-9_-]*$/.test(this.value)) {
+											this.error = 'link not valid';
+											this.valid = false;
+										} else {
+											this.error = '';
+											this.valid = true;
+										}
+										this.loading = false;
+									}, 300)
+								}
+							},
+							bucket: {
+								value: '',
+								loading: false,
+								valid: true,
+								error: '',
+								validate() {
+									this.loading = true;
+									setTimeout(() => {
+										if (!/^[a-z_-]+$/.test(this.value)) {
+											this.error = 'link not valid';
+											this.valid = false;
+										} else {
+											this.error = '';
+											this.valid = true;
+										}
+										this.loading = false;
+									}, 300)
+								}
+							},
+							path: {
+								value: '',
+								loading: false,
+								valid: true,
+								error: '',
+								validate() {
+									this.loading = true;
+									setTimeout(() => {
+										if (!/^(\/?[a-z_-]+\/)+$/.test(this.value)) {
+											this.error = 'path not valid';
+											this.valid = false;
+										} else {
+											this.error = '';
+											this.valid = true;
+										}
+										this.loading = false;
+									}, 300)
+								}
+							},
+							accesskey: {
+								value:'dadang',
+								loading: false,
+								valid: true,
+								error: '',
+								validate() {
+									this.loading = true;
+									setTimeout(() => {
+										if (!/^(\/?[a-zA-Z0-9]+\/)*$/.test(this.value)) {
+											this.error = 'accesskey not valid';
+											this.valid = false;
+										} else {
+											this.error = '';
+											this.valid = true;
+										}
+										this.loading = false;
+									}, 300)
+								},
+								generateAccessKey() {
+									this.loading = true;
+									setTimeout(() => {
+											this.value = Math.random().toString(36).substring(2, 12);
+											this.validate();
+											this.loading = false;
+									}, 500); // Simulating async operation
+            		},
+							},
+							accesstype: {
+								value: '',
+								loading: false,
+							},
+
+							privacy: {
+								value: '',
+								loading: false,
+								valid: true,
+								error: '',
+								validate() {
+									this.loading = true;
+									setTimeout(() => {
+										if (!/^(PRIVATE|PUBLIC)$/.test(this.value)) {
+											this.error = 'accesskey not valid';
+											this.valid = false;
+										} else {
+											this.error = '';
+											this.valid = true;
+										}
+										this.loading = false;
+									}, 300)
+								}
+							}
+						},
+						checkPrivacy() {
+							if (this.fields.privacy.value === 'PUBLIC') {
+								this.fields.accesskey.value = '';
+								this.fields.accesskey.valid = true;
+								this.fields.accesskey.error = '';
+							}
+            },
+						buckets: ` + toJSON(buckets) + `,
+						get paths() {
+            	return this.buckets[this.fields.bucket.value] || [];
+							
+        		},
+						submitting: false,
+						submitError: '',
+						async handleSubmit(){
+
+							this.submitting = true;
+							this.submitError = '';
+
+							try {
+								setLoading(true);
+								const response = await fetch('/api/p/'+editModal.fields.id, {
+									method: 'PUT',
+									headers: {
+										'Content-Type' : 'application/json',
+									},
+									body: JSON.stringify({
+										link: this.fields.link.value,
+										bucket: this.fields.bucket.value,
+										path: this.fields.path.value,
+										access_key: this.fields.accesskey.value,
+										access_type: this.fields.accesstype.value,
+										privacy: this.fields.privacy.value,
+										
+									})
+								});
+							}catch (error) {
+							
+							}finally {
+							
+							}
+						},
+						get isLoading() {
+							return Object.values(this.fields).some(field => field.loading) || this.submitting;
+						},
+						get hasErrors() {
+								return Object.values(this.fields).some(field => field.error);
+						},
+						get isValid() {
+								return Object.values(this.fields).every(field => field.valid);
+						},
+					}` }
+					x-init={ `$watch('editModal.isOpen', value => {
+							// if (value === true && editModal.fields) {  // Check if editModal.fields exists
+							// 		$nextTick(() => {
+							// 				fields.link.value = editModal.fields.link;
+							// 				fields.bucket.value = editModal.fields.bucket;
+							// 				fields.path.value = editModal.fields.path;
+							// 				fields.accesskey.value = editModal.fields.accesskey;
+							// 				fields.accesstype.value = editModal.fields.accesstype;
+							// 				fields.privacy.value = editModal.fields.privacy;
+							// 		});
+							// } else if (value === false) {
+							// 		// Optional: Reset fields when modal closes
+							// 		fields.link.value = '';
+							// 		fields.bucket.value = '';
+							// 		fields.path.value = '';
+							// 		fields.accesskey.value = '';
+							// 		fields.accesstype.value = '';
+							// 		fields.privacy.value = '';
+							// }
+							if (value && editModal.fields) {
+								$nextTick(() => Object.keys(fields).forEach(key => 
+										fields[key].value = editModal.fields[key]
+								));
+    					}
+							})` }
+					class="space-y-4"
+				>
+					<div class="mb-6">
+						<label for="link" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Link</label>
+						<div class="relative">
+							<input
+								maxlength="15"
+								x-model="fields.link.value"
+								@input="fields.link.validate()"
+								@blur="fields.link.validate()"
+								type="text"
+								id="link"
+								class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-black focus:border-black block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-black dark:focus:border-black"
+							/>
+							<div class="absolute top-0 flex items-center h-full right-4">
+								<div
+									x-show="fields.link.loading"
+									class="w-4 h-4 border-2 border-black rounded-full animate-spin border-t-transparent"
+								></div>
+								<span
+									x-show="!fields.link.loading && fields.link.valid"
+									class="text-xl text-green-500"
+								>✅</span>
+								<span
+									x-show="!fields.link.loading && fields.link.value && !fields.link.valid"
+									class="text-xl text-red-500"
+								>❌</span>
+							</div>
+						</div>
+					</div>
+					<div class="mb-6">
+						<label for="bucket" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Select Bucket :</label>
+						<select
+							id="bucket"
+							x-model="fields.bucket.value"
+							class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-black focus:border-black block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-black dark:focus:border-black"
+						>
+							<option value="">Choose a bucket</option>
+							<template x-for="(paths, bucketName) in buckets" :key="bucketName">
+								<option :value="bucketName" x-text="bucketName"></option>
+							</template>
+						</select>
+					</div>
+					<div class="mb-6">
+						<!-- Second Dropdown: Path Selection based on Bucket -->
+						<label for="path" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Select Path:</label>
+						<select
+							id="path"
+							x-model="fields.path.value"
+							:disabled="!paths.length"
+							class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-black focus:border-black block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-black dark:focus:border-black"
+						>
+							<option value="">Choose a path</option>
+							<template x-for="path in paths" :key="path">
+								<option :value="path" x-text="path" x-bind:selected="fields.path.value === path"></option>
+							</template>
+						</select>
+					</div>
+					<div class="mb-6">
+						<label for="accesstype" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Select Access Type</label>
+						<div class="relative">
+							<select
+								id="accesstype"
+								x-model="fields.accesstype.value"
+								class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-black focus:border-black block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-black dark:focus:border-black"
+							>
+								<option
+									value="FULL_ACCESS"
+									x-bind:selected="fields.accesstype.value === 'FULL_ACCESS'"
+								>Full Access</option>
+								<option
+									value="MODIFY"
+									x-bind:selected="fields.accesstype.value === 'MODIFY'"
+								>Modify</option>
+								<option
+									value="EDIT"
+									x-bind:selected="fields.accesstype.value === 'EDIT'"
+								>Edit</option>
+								<option
+									value="VIEW_ONLY"
+									x-bind:selected="fields.accesstype.value === 'VIEW_ONLY'"
+								>View Only</option>
+								<option
+									value="CREATE_ONLY"
+									x-bind:selected="fields.accesstype.value === 'CREATE_ONLY'"
+								>Create Only</option>
+							</select>
+							<div class="absolute top-0 flex items-center h-full right-4">
+								<div
+									x-show="fields.link.loading"
+									class="w-4 h-4 border-2 border-black rounded-full animate-spin border-t-transparent"
+								></div>
+							</div>
+						</div>
+					</div>
+					<div class="mb-6">
+						<!-- Second Dropdown: Path Selection based on Bucket -->
+						<label for="privacy" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Select Privacy:</label>
+						<select
+							id="privacy"
+							x-model="fields.privacy.value"
+							@change="checkPrivacy"
+							class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-black focus:border-black block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-black dark:focus:border-black"
+						>
+							<option
+								value="PRIVATE"
+								x-bind:selected="fields.privacy.value === 'PRIVATE'"
+							>Private</option>
+							<option
+								value="PUBLIC"
+								x-bind:selected="fields.privacy.value === 'PUBLIC'"
+							>Public</option>
+						</select>
+					</div>
+					<div class="mb-6">
+						<label for="accesskey" class="mb-2 text-sm font-medium text-gray-900 dark:text-white">AccessKey</label>
+						<div class="relative">
+							<input
+								x-model="fields.accesskey.value"
+								@input="fields.accesskey.validate()"
+								@blur="fields.accesskey.validate()"
+								:disabled="fields.privacy.value === 'PUBLIC'"
+								type="text"
+								id="accesskey"
+								:class="{'border-red-500': !fields.accesskey.valid && fields.accesskey.value, 'bg-gray-200': fields.privacy.value === 'PUBLIC'}"
+								class="block w-full p-4 text-sm text-gray-900 border border-gray-300 rounded-lg bg-gray-50 focus:ring-black focus:border-black dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-black dark:focus:border-black"
+							/>
+							<button
+								type="button"
+								@click="fields.accesskey.generateAccessKey()"
+								:disabled="fields.accesskey.loading || fields.privacy.value === 'PUBLIC'"
+								class="text-white absolute end-2.5 bottom-2.5 bg-black hover:bg-black focus:ring-4 focus:outline-none focus:ring-black font-medium rounded-lg text-sm px-4 py-2 dark:bg-black dark:hover:bg-black dark:focus:ring-black"
+							>
+								<span x-show="!fields.accesskey.loading">Generate Access Key</span>
+								<span x-show="fields.accesskey.loading">Generating...</span>
+							</button>
+						</div>
+					</div>
+					<!-- Modal Footer -->
+					<div class="sticky bottom-0 flex justify-end pt-4 mt-4 space-x-2 bg-white border-t">
+						<button
+							@click="editModal.closeModal()"
+							class="px-4 py-2 font-medium text-gray-500 transition duration-200 rounded-lg hover:text-gray-700"
+						>
+							Cancel
+						</button>
+						<button
+							type="submit"
+							:disabled="isLoading || hasErrors || !isValid"
+							:class="{'opacity-50 cursor-not-allowed': isLoading || hasErrors || !isValid}"
+							@click=""
+							class="px-4 py-2 font-medium text-white transition duration-200 bg-black rounded-lg hover:bg-black"
+						>
+							<span x-show="!submitting">Submit</span>
+							<span x-show="submitting" class="flex items-center justify-center">
+								<div class="w-4 h-4 mr-2 border-2 border-white rounded-full animate-spin border-t-transparent"></div>
+								Submitting...
+							</span>
+						</button>
+					</div>
+				</form>
 			</div>
 		</div>
 	</div>
 }
 
-templ PublicLinkDelete() {
-	<div x-data="{ isOpen: false }">
-		<!-- Trigger Button -->
-		<button
-			@click="isOpen = true"
-			class="p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-all"
-		>
-			<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
-			</svg>
-		</button>
-		<!-- Modal Backdrop -->
+templ PublicLinkDeleteButton(link models.PublicLink) {
+	<button
+		@click={ `deleteModal.openModal('` + link.ID + `' ,'` + link.Link + `','` + link.RealRootBucket + `','` + link.RealRootPath + `')` }
+		class="p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-all"
+	>
+		<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+			<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+		</svg>
+	</button>
+}
+
+templ PublicLinkDeleteModal() {
+	<!-- Modal Backdrop -->
+	<div
+		x-show="deleteModal.isOpen"
+		x-transition:enter="transition ease-out duration-300"
+		x-transition:enter-start="opacity-0"
+		x-transition:enter-end="opacity-100"
+		x-transition:leave="transition ease-in duration-200"
+		x-transition:leave-start="opacity-100"
+		x-transition:leave-end="opacity-0"
+		class="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50"
+		style="display: none;"
+	>
+		<!-- Modal Content -->
 		<div
-			x-show="isOpen"
+			@click.away="deleteModal.closeModal()"
+			x-show="deleteModal.isOpen"
 			x-transition:enter="transition ease-out duration-300"
-			x-transition:enter-start="opacity-0"
-			x-transition:enter-end="opacity-100"
+			x-transition:enter-start="opacity-0 transform scale-90"
+			x-transition:enter-end="opacity-100 transform scale-100"
 			x-transition:leave="transition ease-in duration-200"
-			x-transition:leave-start="opacity-100"
-			x-transition:leave-end="opacity-0"
-			class="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50"
-			style="display: none;"
+			x-transition:leave-start="opacity-100 transform scale-100"
+			x-transition:leave-end="opacity-0 transform scale-90"
+			class="w-full max-w-md p-6 mx-4 bg-white rounded-lg shadow-xl"
+			x-data="{
+					async handleDelete() {
+							try {
+								setLoading(true);
+								const response = await fetch('/api/p/'+deleteModal.fields.id, {
+									method: 'DELETE',
+								});
+								const data = await response.json();
+								console.log(deleteModal.id);
+
+								if (!response.ok) {
+									throw data; // This allows us to catch the error with its message
+								}
+											
+								window.dispatchEvent(new CustomEvent('notify', { 
+									detail: { 
+										type: 'success', // Explicitly set success type
+										message: data.message
+									}
+								}));
+
+								window.location.href = '/settings/links?message='+data.message;
+											
+							} catch (error) {
+								window.dispatchEvent(new CustomEvent('notify', { 
+									detail: { 
+										type: deleteModal.id, // Explicitly set error type
+										message: error.message || 'Delete operation failed'
+									}
+								}));
+											
+							} finally {
+								setLoading(false);
+								deleteModal.closeModal();
+							}
+							
+						}
+					}
+				"
 		>
-			<!-- Modal Content -->
+			<!-- Modal Header -->
 			<div
-				@click.away="isOpen = false"
-				x-show="isOpen"
-				x-transition:enter="transition ease-out duration-300"
-				x-transition:enter-start="opacity-0 transform scale-90"
-				x-transition:enter-end="opacity-100 transform scale-100"
-				x-transition:leave="transition ease-in duration-200"
-				x-transition:leave-start="opacity-100 transform scale-100"
-				x-transition:leave-end="opacity-0 transform scale-90"
-				class="w-full max-w-md p-6 mx-4 bg-white rounded-lg shadow-xl"
+				class="flex items-center justify-between mb-4"
 			>
-				<!-- Modal Header -->
-				<div class="flex items-center justify-between mb-4">
-					<h3 class="text-lg font-semibold text-gray-900">Modal Title</h3>
-					<button
-						@click="isOpen = false"
-						class="text-gray-400 transition duration-200 hover:text-gray-600"
-					>
-						<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-						</svg>
-					</button>
+				<h3 class="text-lg font-semibold text-gray-900">Delete Public link </h3>
+				<button
+					@click="isOpen = false"
+					class="text-gray-400 transition duration-200 hover:text-gray-600"
+				>
+					<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+					</svg>
+				</button>
+			</div>
+			<!-- Modal Body -->
+			<div class="mb-6 text-sm text-gray-800">
+				<p>Are you sure you want to delete this public link?</p>
+				<div class="p-4 mt-4 bg-gray-100 rounded-lg">
+					<p><strong>ID:</strong> <span x-text="deleteModal.fields.id"></span></p>
+					<p><strong>Link:</strong> <span x-text="deleteModal.fields.link"></span></p>
+					<p><strong>Bucket:</strong> <span x-text="deleteModal.fields.bucket"></span></p>
+					<p><strong>Path:</strong> <span x-text="deleteModal.fields.path"></span></p>
 				</div>
-				<!-- Modal Body -->
-				<div class="mb-4 text-gray-600">
-					<p>This is the modal content. You can put any HTML content here.</p>
-				</div>
-				<!-- Modal Footer -->
-				<div class="flex justify-end space-x-2">
-					<button
-						@click="isOpen = false"
-						class="px-4 py-2 font-medium text-gray-500 transition duration-200 rounded-lg hover:text-gray-700"
-					>
-						Cancel
-					</button>
-					<button
-						@click="isOpen = false"
-						class="px-4 py-2 font-medium text-white transition duration-200 bg-black rounded-lg hover:bg-black"
-					>
-						Confirm
-					</button>
-				</div>
+			</div>
+			<!-- Modal Footer -->
+			<div class="flex justify-end space-x-2">
+				<button
+					@click="deleteModal.closeModal()"
+					class="px-4 py-2 text-sm font-medium text-gray-500 transition duration-200 border border-gray-300 rounded-lg hover:text-gray-700"
+				>
+					Cancel
+				</button>
+				<button
+					@click="handleDelete()"
+					class="px-4 py-2 text-sm font-medium text-white transition duration-200 bg-black rounded-lg hover:bg-gray-800"
+				>
+					Confirm
+				</button>
 			</div>
 		</div>
 	</div>

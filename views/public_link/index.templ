@@ -6,10 +6,12 @@ import (
 	"github.com/Zenk41/simple-file-web/views/layouts"
 )
 
-templ Index(alert models.Alert, user models.User, currlinks []models.PublicLink, currentPage int, startIndex int, endIndex int, totalPages int, totalItems int) {
+type BucketData map[string][]string
+
+templ Index(buckets BucketData, alert models.Alert, user models.User, currlinks []models.PublicLink, currentPage int, startIndex int, endIndex int, totalPages int, totalItems int) {
 	@layouts.Base() {
 		@components.Header(user, true)
-		@components.PublicLinkList(currlinks, currentPage, startIndex, endIndex, totalPages, totalItems)
+		@components.PublicLinkList(buckets, currlinks, currentPage, startIndex, endIndex, totalPages, totalItems)
 		if alert.Type != "" {
 			<div
 				x-data

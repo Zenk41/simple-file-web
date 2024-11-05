@@ -15,7 +15,9 @@ import (
 	"github.com/aws/aws-sdk-go-v2/credentials"
 )
 
-var S3Data models.ConfigS3
+var S3Data models.ConfigS3 = models.ConfigS3{}
+
+
 
 func LoadS3Config(s3Data models.ConfigS3) (aws.Config, error) {
 
