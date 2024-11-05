@@ -15,7 +15,12 @@ import (
 	"github.com/aws/aws-sdk-go-v2/credentials"
 )
 
-var S3Data models.ConfigS3
+var S3Data models.ConfigS3 = models.ConfigS3{S3AccessKey: "GK758db3969aacf9d618d16600",
+	S3SecretKey: "e439720e6d7377fa4be9958fbe5c88fb54dabe66bbe325aa5c9fe476c1d48d73",
+	S3Region:    "garage",
+	S3URL:       "https://storage.ardhidhani.dev"}
+
+
 
 func LoadS3Config(s3Data models.ConfigS3) (aws.Config, error) {
 

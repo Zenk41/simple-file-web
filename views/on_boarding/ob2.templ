@@ -1,13 +1,14 @@
 package on_boarding
 
 import (
+	"github.com/Zenk41/simple-file-web/models"
 	"github.com/Zenk41/simple-file-web/views/components"
 	"github.com/Zenk41/simple-file-web/views/layouts"
 )
 
 templ Ob2() {
 	@layouts.Base() {
-		@components.Header()
+		@components.Header(models.User{}, false)
 		<main class="flex-grow max-w-4xl p-4 m-auto">
 			<h2 class="text-xl font-semibold text-gray-900">On Boarding 2</h2>
 			<div class="max-w-sm p-5 mx-auto mt-4 bg-white border border-gray-200 rounded-lg shadow-sm">

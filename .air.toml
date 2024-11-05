@@ -4,6 +4,7 @@ tmp_dir = "tmp"
 [build]
 bin = "./tmp/main.exe"                                                                                                        # Use .exe for Windows
 cmd = "templ generate && npx tailwindcss -i styles/input.css -o public/globals.css && go build -tags dev -o ./tmp/main.exe ." # Add .exe for Go build output
+# cmd = "templ generate generate --watch --proxy=http://localhost:4000 && npx tailwindcss -i styles/input.css -o public/globals.css && go build -tags dev -o ./tmp/main.exe ." # Add .exe for Go build output
 delay = 20
 exclude_dir = ["assets", "node_modules", "tmp", "vendor"]
 exclude_regex = ["_test.go", ".*_templ.go"]
