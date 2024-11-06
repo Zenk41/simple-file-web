@@ -75,6 +75,8 @@ templ PublicLinkList(buckets map[string][]string, currentLinks []models.PublicLi
     }
   }"
 	>
+		<h2>Public Link</h2>
+		@PublikLinkCreateModalWithButton(buckets)
 		<div class="bg-white border border-gray-200 rounded-lg shadow-md">
 			<!-- Desktop view -->
 			<div class="hidden overflow-x-auto md:block">
@@ -85,8 +87,11 @@ templ PublicLinkList(buckets map[string][]string, currentLinks []models.PublicLi
 							<th class="px-4 py-3 text-xs font-medium text-left text-gray-500">Link</th>
 							<th class="px-4 py-3 text-xs font-medium text-left text-gray-500">Bucket</th>
 							<th class="px-4 py-3 text-xs font-medium text-left text-gray-500">Path</th>
-							<th class="px-4 py-3 text-xs font-medium text-left text-gray-500">Created</th>
-							<th class="px-4 py-3 text-xs font-medium text-left text-gray-500">Updated</th>
+							<th class="px-4 py-3 text-xs font-medium text-left text-gray-500">Access Type</th>
+							<th class="px-4 py-3 text-xs font-medium text-left text-gray-500">Access Key</th>
+							<th class="px-4 py-3 text-xs font-medium text-left text-gray-500">Privacy</th>
+							<th class="px-4 py-3 text-xs font-medium text-left text-gray-500">Created At</th>
+							<th class="px-4 py-3 text-xs font-medium text-left text-gray-500">Updated At</th>
 							<th class="px-4 py-3 text-xs font-medium text-left text-gray-500">Actions</th>
 						</tr>
 					</thead>
@@ -101,6 +106,27 @@ templ PublicLinkList(buckets map[string][]string, currentLinks []models.PublicLi
 								</td>
 								<td class="px-4 py-3 text-sm text-gray-600">{ link.RealRootBucket }</td>
 								<td class="px-4 py-3 text-sm text-gray-600">{ link.RealRootPath }</td>
+								<td class="px-4 py-3 text-sm text-gray-600">{ link.AccessType }</td>
+								<td class="flex items-center px-4 py-3 text-sm text-gray-600">
+									if link.AccessKey != "" {
+										<span
+											x-data="{ copied: false }"
+											x-on:click={ `navigator.clipboard.writeText('` + link.AccessKey + `').then(() => copied = true)` }
+											x-on:mouseleave="copied = false"
+											class="flex items-center cursor-pointer"
+										>
+											{ link.AccessKey[len(link.AccessKey)-4:] }...
+											<button
+												class="ml-2 text-xs text-blue-500 underline"
+												x-text="copied ? 'Copied!' : 'Copy'"
+											></button>
+										</span>
+									} else {
+										<span class="flex items-center cursor-pointer">Nill</span>
+									}
+								</td>
+								// <td class="px-4 py-3 text-sm text-gray-600">{ link.AccessKey }</td>
+								<td class="px-4 py-3 text-sm text-gray-600">{ link.Privacy }</td>
 								<td class="px-4 py-3 text-sm text-gray-600 whitespace-nowrap">{ link.CreatedAt.Format("Jan 02, 2006") }</td>
 								<td class="px-4 py-3 text-sm text-gray-600 whitespace-nowrap">{ link.UpdatedAt.Format("Jan 02, 2006") }</td>
 								<td class="px-4 py-3">
@@ -125,7 +151,7 @@ templ PublicLinkList(buckets map[string][]string, currentLinks []models.PublicLi
 						<div class="flex items-center justify-between">
 							<span class="text-sm font-medium text-gray-500">Link</span>
 							<a href={ templ.SafeURL("/p/" + link.Link) } class="text-sm text-gray-600 hover:text-black text-bold">
-								{ link.Link }
+								{ link.Link }...
 							</a>
 						</div>
 						<div class="flex items-center justify-between">
@@ -137,11 +163,40 @@ templ PublicLinkList(buckets map[string][]string, currentLinks []models.PublicLi
 							<span class="text-sm text-right text-gray-600">{ link.RealRootPath }</span>
 						</div>
 						<div class="flex items-center justify-between">
-							<span class="text-sm font-medium text-gray-500">Created</span>
+							<span class="text-sm font-medium text-gray-500">AccessType</span>
+							<span class="text-sm text-gray-600">{ link.AccessType }</span>
+						</div>
+						<div class="flex items-center justify-between">
+							<span class="text-sm font-medium text-gray-500">AccessKey</span>
+							<div>
+								if link.AccessKey != "" {
+									<span
+										x-data="{ copied: false }"
+										x-on:click={ `navigator.clipboard.writeText('` + link.AccessKey + `').then(() => copied = true)` }
+										x-on:mouseleave="copied = false"
+										class="text-sm text-gray-600"
+									>
+										{ link.AccessKey[len(link.AccessKey)-4:] }...
+										<button
+											class="ml-2 text-xs text-blue-500 underline"
+											x-text="copied ? 'Copied!' : 'Copy'"
+										></button>
+									</span>
+								} else {
+									<span class="text-sm text-gray-600">Nill</span>
+								}
+							</div>
+						</div>
+						<div class="flex items-center justify-between">
+							<span class="text-sm font-medium text-gray-500">Privacy</span>
+							<span class="text-sm text-gray-600">{ link.Privacy }</span>
+						</div>
+						<div class="flex items-center justify-between">
+							<span class="text-sm font-medium text-gray-500">Created At</span>
 							<span class="text-sm text-gray-600">{ link.CreatedAt.Format("Jan 02, 2006") }</span>
 						</div>
 						<div class="flex items-center justify-between">
-							<span class="text-sm font-medium text-gray-500">Updated</span>
+							<span class="text-sm font-medium text-gray-500">Updated At</span>
 							<span class="text-sm text-gray-600">{ link.UpdatedAt.Format("Jan 02, 2006") }</span>
 						</div>
 						<div class="flex justify-end gap-2 pt-2">
@@ -408,15 +463,41 @@ templ PublicLinkEditModal(buckets map[string][]string) {
 				</button>
 			</div>
 			<!-- Modal Body -->
-			<div class="p-4 mb-4 overflow-auto text-gray-600 max-h-80">
+			<div class="mb-4 overflow-auto text-gray-600 max-h-80">
 				<form
 					x-data={ `{
 						fields: {
 							link: {
+								id: '',
 								value: '',
 								loading: false,
 								valid: true,
 								error: '',
+								async serverValidate() {
+									try {
+										const response = await fetch('/api/p/val/link/update', {
+											method: 'POST',
+											headers: {
+												'Content-Type': 'application/json'
+											},
+											body: JSON.stringify({ id: this.id, link: this.value })
+										});
+										
+										const data = await response.json();
+										
+										if (!response.ok) {
+											this.error = data.error;
+											this.valid = false;
+										} else {
+											this.error = '';
+											this.valid = true;
+										}
+										
+									} catch (err) {
+										this.error = err.message;
+										this.valid = false;
+									}
+								},
 								validate(){
 									this.loading = true;
 									setTimeout(() => {
@@ -424,8 +505,7 @@ templ PublicLinkEditModal(buckets map[string][]string) {
 											this.error = 'link not valid';
 											this.valid = false;
 										} else {
-											this.error = '';
-											this.valid = true;
+											this.serverValidate();
 										}
 										this.loading = false;
 									}, 300)
@@ -470,54 +550,74 @@ templ PublicLinkEditModal(buckets map[string][]string) {
 								}
 							},
 							accesskey: {
-								value:'dadang',
+								value: '',
 								loading: false,
 								valid: true,
 								error: '',
+								privacy : 'PRIVATE',
 								validate() {
-									this.loading = true;
-									setTimeout(() => {
-										if (!/^(\/?[a-zA-Z0-9]+\/)*$/.test(this.value)) {
-											this.error = 'accesskey not valid';
-											this.valid = false;
+									if (this.value && !/^[a-zA-Z0-9]+$/.test(this.value)) {
+										this.error = 'Access key must contain only letters and numbers';
+										this.valid = false;
+									} else {
+										if (this.privacy === 'PRIVATE' && this.value === "") {
+											this.error = 'Access cant be empty if the privacy PPRIVATE ';
+											this.valid = false;	
 										} else {
 											this.error = '';
 											this.valid = true;
 										}
-										this.loading = false;
-									}, 300)
+									}
+									this.loading = false;
 								},
-								generateAccessKey() {
+								async generateAccessKey() {
 									this.loading = true;
-									setTimeout(() => {
-											this.value = Math.random().toString(36).substring(2, 12);
-											this.validate();
-											this.loading = false;
-									}, 500); // Simulating async operation
-            		},
+									try {
+										const buffer = new Uint8Array(8);
+										crypto.getRandomValues(buffer);
+										this.value = Array.from(buffer)
+											.map(b => b.toString(16).padStart(2, '0'))
+											.join('')
+											.substring(0, 10);
+										this.validate();
+									} catch (err) {
+										this.error = 'Failed to generate access key';
+									} finally {
+										this.loading = false;
+									}
+								}
 							},
 							accesstype: {
-								value: '',
-								loading: false,
-							},
-
-							privacy: {
-								value: '',
+								value: 'FULL_ACCESS',
 								loading: false,
 								valid: true,
 								error: '',
 								validate() {
-									this.loading = true;
-									setTimeout(() => {
-										if (!/^(PRIVATE|PUBLIC)$/.test(this.value)) {
-											this.error = 'accesskey not valid';
-											this.valid = false;
-										} else {
-											this.error = '';
-											this.valid = true;
-										}
-										this.loading = false;
-									}, 300)
+									if (!['FULL_ACCESS', 'MODIFY', 'EDIT','VIEW_ONLY', 'CREATE_ONLY'].includes(this.value)) {
+										this.error = 'Invalid access setting';
+										this.valid = false;
+									} else {
+										this.error = '';
+										this.valid = true;
+									}
+									this.loading = false;
+								}
+     					},
+							privacy: {
+								value: 'PRIVATE',
+								loading: false,
+								valid: true,
+								error: '',
+								validate() {
+								this.loading = true;
+									if (!['PRIVATE', 'PUBLIC'].includes(this.value)) {
+										this.error = 'Invalid privacy setting';
+										this.valid = false;
+									} else {
+										this.error = '';
+										this.valid = true;
+									}
+									this.loading = false;
 								}
 							}
 						},
@@ -526,6 +626,9 @@ templ PublicLinkEditModal(buckets map[string][]string) {
 								this.fields.accesskey.value = '';
 								this.fields.accesskey.valid = true;
 								this.fields.accesskey.error = '';
+								this.fields.accesskey.privacy = 'PUBLIC';
+							} else {
+								this.fields.accesskey.privacy = 'PRIVATE';
 							}
             },
 						buckets: ` + toJSON(buckets) + `,
@@ -549,18 +652,34 @@ templ PublicLinkEditModal(buckets map[string][]string) {
 									},
 									body: JSON.stringify({
 										link: this.fields.link.value,
-										bucket: this.fields.bucket.value,
-										path: this.fields.path.value,
+										real_root_bucket: this.fields.bucket.value,
+										real_root_path: this.fields.path.value,
 										access_key: this.fields.accesskey.value,
 										access_type: this.fields.accesstype.value,
 										privacy: this.fields.privacy.value,
 										
 									})
 								});
+
+								const data = await response.json();
+								const url = new URL(window.location.href);
+								url.searchParams.append('message', data.message); // This preserves existing params and adds message
+								window.location.href = url.toString();
+
+								if (!response.ok) {
+									throw new Error(data.error || 'Failed to submit form');
+								}
+								window.dispatchEvent(new CustomEvent('notify', { 
+									detail: { 
+										type: 'success', // Explicitly set success type
+										message: data.message
+									}
+								}));
 							}catch (error) {
-							
+								this.submitError = error.message;
 							}finally {
-							
+								this.submitting = false;
+								setLoading(false);
 							}
 						},
 						get isLoading() {
@@ -570,7 +689,8 @@ templ PublicLinkEditModal(buckets map[string][]string) {
 								return Object.values(this.fields).some(field => field.error);
 						},
 						get isValid() {
-								return Object.values(this.fields).every(field => field.valid);
+								return Object.values(this.fields).every(field => field.valid) &&
+										Object.values(this.fields).every(field => !field.loading);
 						},
 					}` }
 					x-init={ `$watch('editModal.isOpen', value => {
@@ -593,24 +713,33 @@ templ PublicLinkEditModal(buckets map[string][]string) {
 							// 		fields.privacy.value = '';
 							// }
 							if (value && editModal.fields) {
-								$nextTick(() => Object.keys(fields).forEach(key => 
-										fields[key].value = editModal.fields[key]
-								));
+								$nextTick(() => {
+								Object.keys(fields).forEach(key => {
+										fields[key].value = editModal.fields[key];
+										fields[key].validate();
+								});
+								fields.link.id = editModal.fields.id;
+								checkPrivacy();
+							});
     					}
 							})` }
 					class="space-y-4"
+					@submit.prevent="handleSubmit"
 				>
 					<div class="mb-6">
 						<label for="link" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Link</label>
 						<div class="relative">
 							<input
 								maxlength="15"
+								minlength="3"
 								x-model="fields.link.value"
 								@input="fields.link.validate()"
 								@blur="fields.link.validate()"
 								type="text"
 								id="link"
+								:class="{'border-red-500': fields.link.error}"
 								class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-black focus:border-black block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-black dark:focus:border-black"
+								required
 							/>
 							<div class="absolute top-0 flex items-center h-full right-4">
 								<div
@@ -627,19 +756,32 @@ templ PublicLinkEditModal(buckets map[string][]string) {
 								>❌</span>
 							</div>
 						</div>
+						<div
+							x-show="fields.link.error"
+							x-text="fields.link.error"
+							class="mt-2 text-sm text-red-600"
+						></div>
 					</div>
 					<div class="mb-6">
 						<label for="bucket" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Select Bucket :</label>
 						<select
 							id="bucket"
 							x-model="fields.bucket.value"
+							@change="fields.bucket.validate()"
+							:class="{'border-red-500': fields.bucket.error}"
 							class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-black focus:border-black block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-black dark:focus:border-black"
+							required
 						>
 							<option value="">Choose a bucket</option>
 							<template x-for="(paths, bucketName) in buckets" :key="bucketName">
 								<option :value="bucketName" x-text="bucketName"></option>
 							</template>
 						</select>
+						<div
+							x-show="fields.bucket.error"
+							x-text="fields.bucket.error"
+							class="mt-2 text-sm text-red-600"
+						></div>
 					</div>
 					<div class="mb-6">
 						<!-- Second Dropdown: Path Selection based on Bucket -->
@@ -647,6 +789,7 @@ templ PublicLinkEditModal(buckets map[string][]string) {
 						<select
 							id="path"
 							x-model="fields.path.value"
+							@change="fields.path.validate()"
 							:disabled="!paths.length"
 							class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-black focus:border-black block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-black dark:focus:border-black"
 						>
@@ -655,6 +798,11 @@ templ PublicLinkEditModal(buckets map[string][]string) {
 								<option :value="path" x-text="path" x-bind:selected="fields.path.value === path"></option>
 							</template>
 						</select>
+						<div
+							x-show="fields.path.error"
+							x-text="fields.path.error"
+							class="mt-2 text-sm text-red-600"
+						></div>
 					</div>
 					<div class="mb-6">
 						<label for="accesstype" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Select Access Type</label>
@@ -662,6 +810,7 @@ templ PublicLinkEditModal(buckets map[string][]string) {
 							<select
 								id="accesstype"
 								x-model="fields.accesstype.value"
+								@change="fields.accesstype.validate()"
 								class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-black focus:border-black block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-black dark:focus:border-black"
 							>
 								<option
@@ -687,11 +836,16 @@ templ PublicLinkEditModal(buckets map[string][]string) {
 							</select>
 							<div class="absolute top-0 flex items-center h-full right-4">
 								<div
-									x-show="fields.link.loading"
+									x-show="fields.accesstype.loading"
 									class="w-4 h-4 border-2 border-black rounded-full animate-spin border-t-transparent"
 								></div>
 							</div>
 						</div>
+						<div
+							x-show="fields.accesstype.error"
+							x-text="fields.accesstype.error"
+							class="mt-2 text-sm text-red-600"
+						></div>
 					</div>
 					<div class="mb-6">
 						<!-- Second Dropdown: Path Selection based on Bucket -->
@@ -699,7 +853,7 @@ templ PublicLinkEditModal(buckets map[string][]string) {
 						<select
 							id="privacy"
 							x-model="fields.privacy.value"
-							@change="checkPrivacy"
+							@change="checkPrivacy();fields.privacy.validate();fields.accesskey.validate()"
 							class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-black focus:border-black block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-black dark:focus:border-black"
 						>
 							<option
@@ -735,7 +889,17 @@ templ PublicLinkEditModal(buckets map[string][]string) {
 								<span x-show="fields.accesskey.loading">Generating...</span>
 							</button>
 						</div>
+						<div
+							x-show="fields.accesskey.error"
+							x-text="fields.accesskey.error"
+							class="mt-2 text-sm text-red-600"
+						></div>
 					</div>
+					<div
+						x-show="submitError"
+						x-text="submitError"
+						class="p-3 mb-4 text-sm text-red-700 bg-red-100 rounded-lg"
+					></div>
 					<!-- Modal Footer -->
 					<div class="sticky bottom-0 flex justify-end pt-4 mt-4 space-x-2 bg-white border-t">
 						<button
@@ -806,8 +970,12 @@ templ PublicLinkDeleteModal() {
 								const response = await fetch('/api/p/'+deleteModal.fields.id, {
 									method: 'DELETE',
 								});
+
 								const data = await response.json();
-								console.log(deleteModal.id);
+								const url = new URL(window.location.href);
+								url.searchParams.append('message', data.message); // This preserves existing params and adds message
+								window.location.href = url.toString();
+											
 
 								if (!response.ok) {
 									throw data; // This allows us to catch the error with its message
@@ -820,8 +988,7 @@ templ PublicLinkDeleteModal() {
 									}
 								}));
 
-								window.location.href = '/settings/links?message='+data.message;
-											
+
 							} catch (error) {
 								window.dispatchEvent(new CustomEvent('notify', { 
 									detail: { 
@@ -882,16 +1049,37 @@ templ PublicLinkDeleteModal() {
 	</div>
 }
 
-templ PublikLinkCreate() {
-	<div x-data="{ isOpen: false }">
+templ PublikLinkCreateModalWithButton(buckets map[string][]string) {
+	<div x-data="{ isOpen: false,isHovered: false, isActive: false }">
 		<!-- Trigger Button -->
 		<button
+			@mouseenter="isHovered = true"
+			@mouseleave="isHovered = false"
+			@mousedown="isActive = true"
+			@mouseup="isActive = false"
 			@click="isOpen = true"
-			class="p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-all"
+			class="inline-flex items-center gap-2 px-3 py-1.5 border border-black font-mono text-sm transition-all duration-150"
+			:class="{
+      'bg-white text-black': !isHovered && !isActive,
+      'bg-gray-100': isHovered && !isActive,
+      'bg-black text-white': isActive
+    }"
 		>
-			<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+			<svg
+				xmlns="http://www.w3.org/2000/svg"
+				class="w-4 h-4"
+				fill="none"
+				viewBox="0 0 24 24"
+				stroke="currentColor"
+				stroke-width="1"
+			>
+				<path
+					stroke-linecap="square"
+					stroke-linejoin="miter"
+					d="M12 4v16m-8-8h16"
+				></path>
 			</svg>
+			<span>Create</span>
 		</button>
 		<!-- Modal Backdrop -->
 		<div
@@ -918,8 +1106,8 @@ templ PublikLinkCreate() {
 				class="w-full max-w-md p-6 mx-4 bg-white rounded-lg shadow-xl"
 			>
 				<!-- Modal Header -->
-				<div class="flex items-center justify-between mb-4">
-					<h3 class="text-lg font-semibold text-gray-900">Modal Title</h3>
+				<div class="sticky top-0 flex items-center justify-between mb-4 bg-white">
+					<h3 class="text-lg font-semibold text-gray-900 ">Edit Publik Link </h3>
 					<button
 						@click="isOpen = false"
 						class="text-gray-400 transition duration-200 hover:text-gray-600"
@@ -930,23 +1118,452 @@ templ PublikLinkCreate() {
 					</button>
 				</div>
 				<!-- Modal Body -->
-				<div class="mb-4 text-gray-600">
-					<p>This is the modal content. You can put any HTML content here.</p>
-				</div>
-				<!-- Modal Footer -->
-				<div class="flex justify-end space-x-2">
-					<button
-						@click="isOpen = false"
-						class="px-4 py-2 font-medium text-gray-500 transition duration-200 rounded-lg hover:text-gray-700"
+				<div class="mb-4 overflow-auto text-gray-600 max-h-80">
+					<form
+						x-data={ `{
+						fields: {
+							link: {
+								value: '',
+								loading: false,
+								valid: false,
+								error: '',
+								async serverValidate() {
+									try {
+										const response = await fetch('/api/p/val/link/create', {
+											method: 'POST',
+											headers: {
+												'Content-Type': 'application/json'
+											},
+											body: JSON.stringify({ link: this.value })
+										});
+										
+										const data = await response.json();
+										
+										if (!response.ok) {
+											this.error = data.error;
+											this.valid = false;
+										} else {
+											this.error = '';
+											this.valid = true;
+										}
+										
+									} catch (err) {
+										this.error = err.message;
+										this.valid = false;
+									}
+								},
+								validate(){
+									this.loading = true;
+									setTimeout(() => {
+										if (!/^[a-z][a-z0-9_-]*$/.test(this.value)) {
+											this.error = 'link not valid';
+											this.valid = false;
+										} else {
+											this.serverValidate();
+										}
+										this.loading = false;
+									}, 300)
+								}
+							},
+							bucket: {
+								value: '',
+								loading: false,
+								valid: false,
+								error: '',
+								validate() {
+									this.loading = true;
+									setTimeout(() => {
+										if (!/^[a-z_-]+$/.test(this.value)) {
+											this.error = 'link not valid';
+											this.valid = false;
+										} else {
+											this.error = '';
+											this.valid = true;
+										}
+										this.loading = false;
+									}, 300)
+								}
+							},
+							path: {
+								value: '',
+								loading: false,
+								valid: false,
+								error: '',
+								validate() {
+									this.loading = true;
+									setTimeout(() => {
+										if (!/^(\/?[a-z_-]+\/)+$/.test(this.value)) {
+											this.error = 'path not valid';
+											this.valid = false;
+										} else {
+											this.error = '';
+											this.valid = true;
+										}
+										this.loading = false;
+									}, 300)
+								}
+							},
+							accesskey: {
+								value: '',
+								loading: false,
+								valid: false,
+								error: '',
+								privacy : 'PRIVATE',
+								validate() {
+									if (this.value && !/^[a-zA-Z0-9]+$/.test(this.value)) {
+										this.error = 'Access key must contain only letters and numbers';
+										this.valid = false;
+									} else {
+										if (this.privacy === 'PRIVATE' && this.value === "") {
+											this.error = 'Access cant be empty if the privacy PRIVATE ';
+											this.valid = false;	
+										} else {
+											this.error = '';
+											this.valid = true;
+										}
+									}
+									this.loading = false;
+								},
+								async generateAccessKey() {
+									this.loading = true;
+									try {
+										const buffer = new Uint8Array(8);
+										crypto.getRandomValues(buffer);
+										this.value = Array.from(buffer)
+											.map(b => b.toString(16).padStart(2, '0'))
+											.join('')
+											.substring(0, 10);
+										this.validate();
+									} catch (err) {
+										this.error = 'Failed to generate access key';
+									} finally {
+										this.loading = false;
+									}
+								}
+							},
+							accesstype: {
+								value: 'FULL_ACCESS',
+								loading: false,
+								valid: true,
+								error: '',
+								validate() {
+									if (!['FULL_ACCESS', 'MODIFY', 'EDIT','VIEW_ONLY', 'CREATE_ONLY'].includes(this.value)) {
+										this.error = 'Invalid access setting';
+										this.valid = false;
+									} else {
+										this.error = '';
+										this.valid = true;
+									}
+									this.loading = false;
+								}
+     					},
+							privacy: {
+								value: 'PRIVATE',
+								loading: false,
+								valid: true,
+								error: '',
+								validate() {
+								this.loading = true;
+									if (!['PRIVATE', 'PUBLIC'].includes(this.value)) {
+										this.error = 'Invalid privacy setting';
+										this.valid = false;
+									} else {
+										this.error = '';
+										this.valid = true;
+									}
+									this.loading = false;
+								}
+							}
+						},
+						checkPrivacy() {
+							if (this.fields.privacy.value === 'PUBLIC') {
+								this.fields.accesskey.value = '';
+								this.fields.accesskey.valid = true;
+								this.fields.accesskey.error = '';
+								this.fields.accesskey.privacy = 'PUBLIC';
+							} else {
+								this.fields.accesskey.privacy = 'PRIVATE';
+							}
+            },
+						buckets: ` + toJSON(buckets) + `,
+						get paths() {
+            	return this.buckets[this.fields.bucket.value] || [];
+							
+        		},
+						submitting: false,
+						submitError: '',
+						async handleSubmit(event) {
+							event.preventDefault();
+							setLoading(true);
+							
+							if (!this.isValid) {
+								return;
+							}
+							
+							this.submitting = true;
+							this.submitError = '';
+							
+							try {
+								const response = await fetch('/api/p/', {
+									method: 'POST',
+									headers: {
+										'Content-Type': 'application/json',
+									},
+									body: JSON.stringify({
+										link: this.fields.link.value,
+										real_root_bucket: this.fields.bucket.value,
+										real_root_path: this.fields.path.value,
+										access_key: this.fields.accesskey.value,
+										access_type: this.fields.accesstype.value,
+										privacy: this.fields.privacy.value,
+									})
+								});
+								
+								const data = await response.json();
+								const url = new URL(window.location.href);
+								url.searchParams.append('message', data.message); // This preserves existing params and adds message
+								window.location.href = url.toString();
+								
+								if (!response.ok) {
+									throw new Error(data.error || 'Failed to submit form');
+								}
+								window.dispatchEvent(new CustomEvent('notify', { 
+									detail: { 
+										type: 'success', // Explicitly set success type
+										message: data.message
+									}
+								}));
+
+								
+							} catch (error) {
+								this.submitError = error.message;
+							} finally {
+								this.submitting = false;
+								setLoading(false);
+								isOpen = false;
+							}
+						},
+						get isLoading() {
+							return Object.values(this.fields).some(field => field.loading) || this.submitting;
+						},
+						get hasErrors() {
+								return Object.values(this.fields).some(field => field.error);
+						},
+						get isValid() {
+							return Object.values(this.fields).every(field => field.valid) &&
+										Object.values(this.fields).every(field => !field.loading);
+						},
+					}` }
+						x-init={ `$watch('isOpen', value => {
+							if (value && editModal.fields) {
+								$nextTick(() => Object.keys(fields).forEach(key => 
+										fields[key].value = ''
+								));
+    					}
+							})` }
+						class="space-y-4"
+						@submit.prevent="handleSubmit"
 					>
-						Cancel
-					</button>
-					<button
-						@click="isOpen = false"
-						class="px-4 py-2 font-medium text-white transition duration-200 bg-black rounded-lg hover:bg-black"
-					>
-						Confirm
-					</button>
+						<div class="mb-6">
+							<label for="link" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Link</label>
+							<div class="relative">
+								<input
+									maxlength="15"
+									minlength="3"
+									x-model="fields.link.value"
+									@input="fields.link.validate()"
+									@blur="fields.link.validate()"
+									type="text"
+									id="link"
+									:class="{'border-red-500': fields.link.error}"
+									class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-black focus:border-black block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-black dark:focus:border-black"
+									required
+								/>
+								<div class="absolute top-0 flex items-center h-full right-4">
+									<div
+										x-show="fields.link.loading"
+										class="w-4 h-4 border-2 border-black rounded-full animate-spin border-t-transparent"
+									></div>
+									<span
+										x-show="!fields.link.loading && fields.link.valid"
+										class="text-xl text-green-500"
+									>✅</span>
+									<span
+										x-show="!fields.link.loading && fields.link.value && !fields.link.valid"
+										class="text-xl text-red-500"
+									>❌</span>
+								</div>
+							</div>
+							<div
+								x-show="fields.link.error"
+								x-text="fields.link.error"
+								class="mt-2 text-sm text-red-600"
+							></div>
+						</div>
+						<div class="mb-6">
+							<label for="bucket" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Select Bucket :</label>
+							<select
+								id="bucket"
+								x-model="fields.bucket.value"
+								@change="fields.bucket.validate()"
+								:class="{'border-red-500': fields.bucket.error}"
+								class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-black focus:border-black block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-black dark:focus:border-black"
+								required
+							>
+								<option value="">Choose a bucket</option>
+								<template x-for="(paths, bucketName) in buckets" :key="bucketName">
+									<option :value="bucketName" x-text="bucketName"></option>
+								</template>
+							</select>
+							<div
+								x-show="fields.bucket.error"
+								x-text="fields.bucket.error"
+								class="mt-2 text-sm text-red-600"
+							></div>
+						</div>
+						<div class="mb-6">
+							<!-- Second Dropdown: Path Selection based on Bucket -->
+							<label for="path" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Select Path:</label>
+							<select
+								id="path"
+								x-model="fields.path.value"
+								@change="fields.path.validate()"
+								:disabled="!paths.length"
+								:class="{'border-red-500': fields.path.error}"
+								class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-black focus:border-black block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-black dark:focus:border-black"
+								required
+							>
+								<option value="">Choose a path</option>
+								<template x-for="path in paths" :key="path">
+									<option :value="path" x-text="path"></option>
+								</template>
+							</select>
+							<div
+								x-show="fields.path.error"
+								x-text="fields.path.error"
+								class="mt-2 text-sm text-red-600"
+							></div>
+						</div>
+						<div class="mb-6">
+							<label for="accesstype" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Select Access Type</label>
+							<div class="relative">
+								<select
+									id="accesstype"
+									x-model="fields.accesstype.value"
+									@change="fields.accesstype.validate()"
+									class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-black focus:border-black block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-black dark:focus:border-black"
+									required
+								>
+									<option
+										value="FULL_ACCESS"
+									>Full Access</option>
+									<option
+										value="MODIFY"
+									>Modify</option>
+									<option
+										value="EDIT"
+									>Edit</option>
+									<option
+										value="VIEW_ONLY"
+									>View Only</option>
+									<option
+										value="CREATE_ONLY"
+									>Create Only</option>
+								</select>
+								<div class="absolute top-0 flex items-center h-full right-4">
+									<div
+										x-show="fields.accesstype.loading"
+										class="w-4 h-4 border-2 border-black rounded-full animate-spin border-t-transparent"
+									></div>
+								</div>
+							</div>
+							<div
+								x-show="fields.accesstype.error"
+								x-text="fields.accesstype.error"
+								class="mt-2 text-sm text-red-600"
+							></div>
+						</div>
+						<div class="mb-6">
+							<!-- Second Dropdown: Path Selection based on Bucket -->
+							<label for="privacy" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Select Privacy:</label>
+							<select
+								id="privacy"
+								x-model="fields.privacy.value"
+								@change="checkPrivacy();fields.privacy.validate();fields.accesskey.validate()"
+								class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-black focus:border-black block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-black dark:focus:border-black"
+								required
+							>
+								<option
+									value="PRIVATE"
+								>Private</option>
+								<option
+									value="PUBLIC"
+								>Public</option>
+							</select>
+							<div
+								x-show="fields.privacy.error"
+								x-text="fields.privacy.error"
+								class="mt-2 text-sm text-red-600"
+							></div>
+						</div>
+						<div class="mb-6">
+							<label for="accesskey" class="mb-2 text-sm font-medium text-gray-900 dark:text-white">AccessKey</label>
+							<div class="relative">
+								<input
+									x-model="fields.accesskey.value"
+									@input="fields.accesskey.validate()"
+									@blur="fields.accesskey.validate()"
+									:disabled="fields.privacy.value === 'PUBLIC'"
+									type="text"
+									id="accesskey"
+									:class="{'border-red-500': !fields.accesskey.valid && fields.accesskey.value, 'bg-gray-200': fields.privacy.value === 'PUBLIC'}"
+									class="block w-full p-4 text-sm text-gray-900 border border-gray-300 rounded-lg bg-gray-50 focus:ring-black focus:border-black dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-black dark:focus:border-black"
+								/>
+								<button
+									type="button"
+									@click="fields.accesskey.generateAccessKey()"
+									:disabled="fields.accesskey.loading || fields.privacy.value === 'PUBLIC'"
+									class="text-white absolute end-2.5 bottom-2.5 bg-black hover:bg-black focus:ring-4 focus:outline-none focus:ring-black font-medium rounded-lg text-sm px-4 py-2 dark:bg-black dark:hover:bg-black dark:focus:ring-black"
+								>
+									<span x-show="!fields.accesskey.loading">Generate Access Key</span>
+									<span x-show="fields.accesskey.loading">Generating...</span>
+								</button>
+							</div>
+							<div
+								x-show="fields.accesskey.error"
+								x-text="fields.accesskey.error"
+								class="mt-2 text-sm text-red-600"
+							></div>
+							<!-- Submit Error Message -->
+						</div>
+						<div
+							x-show="submitError"
+							x-text="submitError"
+							class="p-3 mb-4 text-sm text-red-700 bg-red-100 rounded-lg"
+						></div>
+						<!-- Modal Footer -->
+						<div class="sticky bottom-0 flex justify-end pt-4 mt-4 space-x-2 bg-white border-t">
+							<button
+								@click="isOpen = true"
+								class="px-4 py-2 font-medium text-gray-500 transition duration-200 rounded-lg hover:text-gray-700"
+							>
+								Cancel
+							</button>
+							<button
+								type="submit"
+								:disabled="isLoading || hasErrors || !isValid"
+								:class="{'opacity-50 cursor-not-allowed': isLoading || hasErrors || !isValid}"
+								@click=""
+								class="px-4 py-2 font-medium text-white transition duration-200 bg-black rounded-lg hover:bg-black"
+							>
+								<span x-show="!submitting">Submit</span>
+								<span x-show="submitting" class="flex items-center justify-center">
+									<div class="w-4 h-4 mr-2 border-2 border-white rounded-full animate-spin border-t-transparent"></div>
+									Submitting...
+								</span>
+							</button>
+						</div>
+					</form>
 				</div>
 			</div>
 		</div>
