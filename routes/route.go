@@ -54,6 +54,8 @@ func (hl *HandlerList) RoutesRegister(app *fiber.App) {
 	pLink.Put("/:id", hl.PublicLinkHandler.UpdatePublicLink)
 	pLink.Post("/", hl.PublicLinkHandler.CreatePublicLink)
 	pLink.Delete("/:id", hl.PublicLinkHandler.DeletePublicLink)
+	pLink.Post("/val/link/create", hl.PublicLinkHandler.ValidateLinkCreate)
+	pLink.Post("/val/link/update", hl.PublicLinkHandler.ValidateLinkUpdate)
 
 	// pages bucket
 	bucket := app.Group("/b")

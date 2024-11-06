@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"fmt"
 	"math"
 	"net/url"
 	"strconv"
@@ -217,9 +218,26 @@ func (ph *pageHandler) PublikLinkList(ctx *fiber.Ctx) error {
 
 	links := ph.pubLink.ReadPublicLinks()
 
-	const itemsPerPage = 10
+	const itemsPerPage = 5
 	totalItems := len(links)
 	totalPages := int(math.Ceil(float64(totalItems) / float64(itemsPerPage)))
+
+	message := ctx.Query("message")
+
+	// Ensure the page value is within the valid range
+	if page > totalPages {
+		page = totalPages
+
+		// Build the redirect URL with the message parameter
+		redirectURL := fmt.Sprintf("/settings/links?page=%d", page)
+		if message != "" {
+			redirectURL += fmt.Sprintf("&message=%s", message)
+		}
+
+		// Update the URL to reflect the adjusted page value and message
+		return ctx.Redirect(redirectURL)
+	}
+
 	// Calculate start and end index for current page
 	startIndex := (page - 1) * itemsPerPage
 	endIndex := min(startIndex+itemsPerPage, totalItems)
@@ -238,7 +256,6 @@ func (ph *pageHandler) PublikLinkList(ctx *fiber.Ctx) error {
 		bucketData[bucket] = folders
 	}
 
-	message := ctx.Query("message")
 	if message != "" {
 		return Render(ctx, public_link.Index(bucketData, models.Alert{Type: "success", Message: message}, user, currentLinks, page, startIndex, endIndex, totalPages, totalItems))
 	}

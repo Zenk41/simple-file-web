@@ -80,7 +80,7 @@ func accessTypeValidator(fl validator.FieldLevel) bool {
 
 func accessKeyValidator(fl validator.FieldLevel) bool {
 	accessKey := fl.Field().String()
-	regex := `^(\/?[a-zA-Z0-9]+\/?)+$`
+	regex := `^(\/?[a-zA-Z0-9]+\/?)*$`
 	matched, err := regexp.MatchString(regex, accessKey)
 	if err != nil {
 		return false

@@ -23,6 +23,7 @@ type PublicLinkManager interface {
 	GetRootByLink(link string) (models.PublicLink, error)
 	SaveToFile() error
 	LoadFromFile() error
+	IsLinkDuplicate(link, id string) bool
 }
 
 type dataPublic struct {
@@ -85,7 +86,7 @@ func (dp *dataPublic) LoadFromFile() error {
 }
 
 func (dp *dataPublic) CreatePublicLink(payload models.PublicLink) error {
-	if dp.IsLinkDuplicate(payload.Link) {
+	if dp.IsLinkDuplicate(payload.Link, "") {
 		return fmt.Errorf("link is duplicate")
 	}
 	payload.ID = fmt.Sprintf("%d", len(dp.links)+1)
@@ -191,9 +192,20 @@ func (dp *dataPublic) SearchPublicLinks(query string) []models.PublicLink {
 	return results
 }
 
-func (dp *dataPublic) IsLinkDuplicate(link string) bool {
+func (dp *dataPublic) IsLinkDuplicate(link, id string) bool {
+	// For create (no ID provided) - check if link exists anywhere
+	if id == "" {
+		for _, l := range dp.links {
+			if link == l.Link {
+				return true
+			}
+		}
+		return false
+	}
+
+	// For update (ID provided) - check if link exists under different ID
 	for _, l := range dp.links {
-		if link == l.Link {
+		if link == l.Link && id != l.ID {
 			return true
 		}
 	}

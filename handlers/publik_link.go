@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"log/slog"
+	"strings"
 
 	"github.com/Zenk41/simple-file-web/models"
 	"github.com/Zenk41/simple-file-web/services"
@@ -13,6 +14,8 @@ type PublicLinkHandler interface {
 	CreatePublicLink(ctx *fiber.Ctx) error
 	DeletePublicLink(ctx *fiber.Ctx) error
 	UpdatePublicLink(ctx *fiber.Ctx) error
+	ValidateLinkCreate(ctx *fiber.Ctx) error
+	ValidateLinkUpdate(ctx *fiber.Ctx) error
 }
 
 type publicLinkHandler struct {
@@ -55,7 +58,7 @@ func (plh *publicLinkHandler) CreatePublicLink(ctx *fiber.Ctx) error {
 	link := models.PublicLink{
 		Link:           payload.Link,
 		RealRootBucket: payload.RealRootBucket,
-		RealRootPath:   payload.RealRootPath,
+		RealRootPath:   strings.Trim(payload.RealRootPath, "/"),
 		AccessKey:      payload.AccessKey,
 		AccessType:     payload.AccessType,
 		Privacy:        payload.Privacy,
@@ -133,7 +136,7 @@ func (plh *publicLinkHandler) UpdatePublicLink(ctx *fiber.Ctx) error {
 	link := models.PublicLink{
 		Link:           payload.Link,
 		RealRootBucket: payload.RealRootBucket,
-		RealRootPath:   payload.RealRootPath,
+		RealRootPath:   strings.Trim(payload.RealRootPath, "/"),
 		AccessKey:      payload.AccessKey,
 		AccessType:     payload.AccessType,
 		Privacy:        payload.Privacy,
@@ -151,5 +154,75 @@ func (plh *publicLinkHandler) UpdatePublicLink(ctx *fiber.Ctx) error {
 	return ctx.Status(fiber.StatusOK).JSON(fiber.Map{
 		"status":  "success",
 		"message": "success update a public link with id" + id,
+	})
+}
+
+func (plh *publicLinkHandler) ValidateLinkUpdate(ctx *fiber.Ctx) error {
+	payload := new(models.ValidateLinkUpdate)
+
+	if err := ctx.BodyParser(payload); err != nil {
+		plh.logger.Error("Invalid request body", slog.String("error", err.Error()))
+		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"status":  "error",
+			"message": "Invalid request body",
+			"error":   err.Error(),
+		})
+	}
+
+	if err := plh.validator.Struct(payload); err != nil {
+		plh.logger.Error("Validation failed", slog.String("error", err.Error()))
+		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"status":  "error",
+			"message": "Validation failed",
+			"error":   err.Error(),
+		})
+	}
+
+	if duplicate := plh.publicLinkService.IsLinkDuplicate(payload.Link, payload.ID); duplicate {
+		plh.logger.Error("Validation failed", slog.String("error", "link is duplicate"))
+		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"status":  "error",
+			"message": "link is duplicate",
+			"error":   "cant use this link, it's duplicate",
+		})
+	}
+	return ctx.Status(fiber.StatusOK).JSON(fiber.Map{
+		"status":  "success",
+		"message": "link it's available",
+	})
+}
+
+func (plh *publicLinkHandler) ValidateLinkCreate(ctx *fiber.Ctx) error {
+	payload := new(models.ValidateLinkCreate)
+
+	if err := ctx.BodyParser(payload); err != nil {
+		plh.logger.Error("Invalid request body", slog.String("error", err.Error()))
+		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"status":  "error",
+			"message": "Invalid request body",
+			"error":   err.Error(),
+		})
+	}
+
+	if err := plh.validator.Struct(payload); err != nil {
+		plh.logger.Error("Validation failed", slog.String("error", err.Error()))
+		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"status":  "error",
+			"message": "Validation failed",
+			"error":   err.Error(),
+		})
+	}
+
+	if duplicate := plh.publicLinkService.IsLinkDuplicate(payload.Link, ""); duplicate {
+		plh.logger.Error("Validation failed", slog.String("error", "link is duplicate"))
+		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"status":  "error",
+			"message": "link is duplicate",
+			"error":   "cant use this link, it's duplicate",
+		})
+	}
+	return ctx.Status(fiber.StatusOK).JSON(fiber.Map{
+		"status":  "success",
+		"message": "link it's available",
 	})
 }
