@@ -9,12 +9,16 @@ import (
 	"github.com/go-playground/validator/v10"
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
+	"github.com/pquerna/otp/totp"
 )
 
 type AuthHandler interface {
 	Login(ctx *fiber.Ctx) error
 	Register(ctx *fiber.Ctx) error
 	Logout(ctx *fiber.Ctx) error
+	GenerateOtp(ctx *fiber.Ctx) error
+	VerifyOtp(ctx *fiber.Ctx) error
+	ValidateOtp(ctx *fiber.Ctx) error
 }
 
 type authHandler struct {
@@ -145,4 +149,144 @@ func (ah *authHandler) Logout(ctx *fiber.Ctx) error {
 		"status":  "success",
 		"message": "Logged out successfully",
 	})
+}
+
+func (ah *authHandler) GenerateOtp(ctx *fiber.Ctx) error {
+	payload := new(models.OTPInput)
+
+	if err := ctx.BodyParser(&payload); err != nil {
+		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"status":  "error",
+			"message": "Invalid request body",
+			"error":   err.Error(),
+		})
+	}
+
+	claim, err := ah.jwtConfig.DecodeToken(ctx.Cookies("access_token"))
+
+	user, err := ah.authService.ReadUserWithId(claim.ID)
+	if err != nil {
+		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"status":  "error",
+			"message": "cannot read user",
+			"error":   err.Error(),
+		})
+	}
+
+	key, err := totp.Generate(totp.GenerateOpts{
+		Issuer:      "localhost:3000",
+		AccountName: user.Email,
+		SecretSize:  15,
+	})
+
+	if err != nil {
+		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"status":  "error",
+			"message": "failed to generate otp",
+			"error":   err.Error(),
+		})
+	}
+
+	ah.authService.UpdateOTP(models.User{
+		OtpSecret:  key.Secret(),
+		OtpAuthUrl: key.URL(),
+	})
+
+	return ctx.Status(fiber.StatusOK).JSON(fiber.Map{
+		"status":       "success",
+		"message":      "otp is generated",
+		"base32":       key.Secret(),
+		"otp_auth_url": key.URL(),
+	})
+}
+func (ah *authHandler) VerifyOtp(ctx *fiber.Ctx) error {
+	payload := new(models.OTPInput)
+
+	if err := ctx.BodyParser(&payload); err != nil {
+		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"status":  "error",
+			"message": "Invalid request body",
+			"error":   err.Error(),
+		})
+	}
+
+	claim, err := ah.jwtConfig.DecodeToken(ctx.Cookies("access_token"))
+	if err != nil {
+		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"status":  "error",
+			"message": "failed to decode token",
+			"error":   err.Error(),
+		})
+	}
+
+	user, err := ah.authService.ReadUserWithId(claim.ID)
+	if err != nil {
+		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"status":  "error",
+			"message": "cannot read user",
+			"error":   err.Error(),
+		})
+	}
+
+	valid := totp.Validate(payload.Token, user.OtpSecret)
+	if !valid {
+		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"status":  "error",
+			"message": "token is invalid",
+			"error":   "token is invalid",
+		})
+	}
+
+	return ctx.Status(fiber.StatusOK).JSON(fiber.Map{
+		"otp_verified": true,
+		"user": fiber.Map{"status": "success",
+			"message":     "otp is generated",
+			"id":          user.ID,
+			"username":    user.Username,
+			"email":       user.Email,
+			"otp_enabled": user.OtpEnabled},
+	})
+}
+func (ah *authHandler) ValidateOtp(ctx *fiber.Ctx) error {
+	payload := new(models.OTPInput)
+
+	if err := ctx.BodyParser(&payload); err != nil {
+		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"status":  "error",
+			"message": "Invalid request body",
+			"error":   err.Error(),
+		})
+	}
+
+	claim, err := ah.jwtConfig.DecodeToken(ctx.Cookies("access_token"))
+	if err != nil {
+		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"status":  "error",
+			"message": "failed to decode token",
+			"error":   err.Error(),
+		})
+	}
+
+	user, err := ah.authService.ReadUserWithId(claim.ID)
+	if err != nil {
+		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"status":  "error",
+			"message": "cannot read user",
+			"error":   err.Error(),
+		})
+	}
+
+	valid := totp.Validate(payload.Token, user.OtpSecret)
+	if !valid {
+		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"status":  "error",
+			"message": "token is invalid",
+			"error":   "token is invalid",
+		})
+	}
+
+	return ctx.Status(fiber.StatusOK).JSON(fiber.Map{
+		"otp_valid": true,
+	})
+
 }
