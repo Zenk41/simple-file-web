@@ -48,13 +48,22 @@ type OnBoarding struct {
 }
 
 type User struct {
-	ID           uuid.UUID `json:"id"`
-	Username     string    `json:"username" validate:"required,min=4,max=8"`
-	Email        string    `json:"email" validate:"required,email"`
-	Password     string    `json:"password" validate:"required,min=8"`
-	RecoveryCode string    `json:"recovery_code"`
-	CreatedAt    time.Time
-	UpdatedAt    time.Time
+	ID       uuid.UUID `json:"id"`
+	Username string    `json:"username" validate:"required,min=4,max=8"`
+	Email    string    `json:"email" validate:"required,email"`
+	Password string    `json:"password" validate:"required,min=8"`
+
+	OtpEnabled  bool `json:"otp_enabled"`
+	OtpVerified bool `json:"otp_verified"`
+
+	OtpSecret  string `json:"otp_secret"`
+	OtpAuthUrl string `json:"otp_auth_url"`
+	CreatedAt  time.Time
+	UpdatedAt  time.Time
+}
+
+type OTPInput struct {
+	Token  string `json:"token"`
 }
 
 type Auth struct {
