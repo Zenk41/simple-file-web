@@ -27,9 +27,12 @@ func (hl *HandlerList) RoutesRegister(app *fiber.App) {
 	auth.Post("/login", hl.AuthHandler.Login)
 	auth.Post("/register", hl.AuthHandler.Register)
 	auth.Post("/logout", middlewares.IsAuthenticated(hl.JwtConfig), hl.AuthHandler.Logout)
-	// app.Post("/api/auth/otp/generate")
-	// app.Post("/api/auth/otp/verify")
-	// app.Post("/api/auth/otp/validate")
+
+	otp := auth.Group("/otp", middlewares.IsAuthenticated(hl.JwtConfig))
+	otp.Post("/generate", hl.AuthHandler.GenerateOtp)
+	otp.Post("/verify", hl.AuthHandler.VerifyOtp)
+	otp.Post("/validate", hl.AuthHandler.ValidateOtp)
+	// otp.Post("/disable")
 
 	// pages publik
 	publik := app.Group("/p")
