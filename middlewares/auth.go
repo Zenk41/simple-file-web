@@ -233,6 +233,30 @@ func validateToken(tokenString, secretKey string) (*JWTClaims, error) {
 	return claims, nil
 }
 
+// DecodeToken decodes the JWT token and returns the claims
+func (config *JWTConfig) DecodeToken(tokenString string) (*JWTClaims, error) {
+	token, err := jwt.ParseWithClaims(tokenString, &JWTClaims{}, func(token *jwt.Token) (interface{}, error) {
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, ErrInvalidSignature
+		}
+		return []byte(config.SecretKey), nil
+	})
+
+	if err != nil {
+		if errors.Is(err, jwt.ErrTokenExpired) {
+			return nil, ErrTokenExpired
+		}
+		return nil, err
+	}
+
+	claims, ok := token.Claims.(*JWTClaims)
+	if !ok || !token.Valid {
+		return nil, ErrInvalidToken
+	}
+
+	return claims, nil
+}
+
 // createCookie creates a new cookie with the specified parameters
 func createCookie(name, value string, expiry time.Duration) *fiber.Cookie {
 	return &fiber.Cookie{
