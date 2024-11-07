@@ -17,6 +17,8 @@ type AuthService interface {
 	ReadBoarding() (models.OnBoarding, error)
 	CreateUser(payload models.RegisterPayload) error
 	UpdateUser(payload models.User) error
+	ReadUserWithId(id string) (models.User, error)
+	UpdateOTP(user models.User) error
 }
 
 type authService struct {
@@ -70,6 +72,7 @@ func (as *authService) CreateUser(payload models.RegisterPayload) error {
 	user.Email = payload.Email
 	user.EncryptPassword(payload.Password)
 	user.Username = payload.Username
+	user.OtpEnabled = true
 
 	as.auth.User = user
 	as.logger.Info("created new user",
@@ -132,5 +135,43 @@ func (as *authService) LoadFromFile() error {
 	}
 
 	as.logger.Info("Loaded public links from file", slog.String("filename", as.filename), slog.String("user : ", as.auth.User.Username))
+	return nil
+}
+
+func (as *authService) ReadUserWithId(id string) (models.User, error) {
+	if as.auth.User.ID == uuid.Nil {
+		as.logger.Error("user empty")
+		return as.auth.User, fmt.Errorf("user is empty")
+	}
+	userId, err := uuid.Parse(id)
+	if err != nil {
+		as.logger.Error("cannot parse uuid")
+		return as.auth.User, fmt.Errorf("uuid is not valid")
+	}
+	if as.auth.User.ID == userId {
+		as.logger.Info("succes read user")
+		return as.auth.User, nil
+	}
+	as.logger.Info("succes read user")
+	return as.auth.User, nil
+}
+
+func (as *authService) UpdateOTP(user models.User) error {
+	if user.OtpSecret == "" || user.OtpAuthUrl == "" {
+		as.logger.Error("cannot update otp is empty")
+		return fmt.Errorf("cannot update otp is empty")
+	}
+	as.auth.OtpSecret = user.OtpSecret
+	as.auth.OtpAuthUrl = user.OtpAuthUrl
+	return nil
+}
+
+func (as *authService) EnablingOTP(user models.User) error {
+	if !user.OtpEnabled || !user.OtpVerified {
+		as.logger.Error("cannot enable otp is empty")
+		return fmt.Errorf("cannot enable otp is empty")
+	}
+	user.OtpEnabled = true
+	user.OtpVerified = true
 	return nil
 }
