@@ -37,6 +37,13 @@ func main() {
 		AllowOrigins: originURL,
 	}))
 
+	app.Use(func(c *fiber.Ctx) error {
+		c.Set("X-Frame-Options", "DENY")
+		c.Set("X-Content-Type-Options", "nosniff")
+		c.Set("X-XSS-Protection", "1; mode=block")
+		return c.Next()
+	})
+
 	exp, err := strconv.Atoi(v.GetString("DOWNLOAD_URL_EXPIRATION"))
 	if err != nil {
 		exp = 3600 //deffault value of expiration delete
