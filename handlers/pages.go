@@ -15,7 +15,6 @@ import (
 	"github.com/Zenk41/simple-file-web/views/components"
 	"github.com/Zenk41/simple-file-web/views/error_handling"
 	"github.com/Zenk41/simple-file-web/views/home"
-	"github.com/Zenk41/simple-file-web/views/on_boarding"
 	"github.com/Zenk41/simple-file-web/views/public"
 	"github.com/Zenk41/simple-file-web/views/public_link"
 	"github.com/gofiber/fiber/v2"
@@ -27,7 +26,7 @@ type PageHandler interface {
 	Login(ctx *fiber.Ctx) error
 	Register(ctx *fiber.Ctx) error
 	PostFormKey(ctx *fiber.Ctx) error
-	OnBoarding(ctx *fiber.Ctx) error
+
 	Home(ctx *fiber.Ctx) error
 	BucketRoot(ctx *fiber.Ctx) error
 	GetPathObject(ctx *fiber.Ctx) error
@@ -62,19 +61,6 @@ func (ph *pageHandler) Register(ctx *fiber.Ctx) error {
 	return Render(ctx, views_auth.Register())
 }
 
-func (ph *pageHandler) OnBoarding(ctx *fiber.Ctx) error {
-	if !OnBoarding.Ob1.IsDone {
-		return Render(ctx, on_boarding.Ob1())
-	}
-	if !OnBoarding.Ob2.IsDone {
-		return Render(ctx, on_boarding.Ob2())
-	}
-	if !OnBoarding.Ob3.IsDone {
-		return Render(ctx, on_boarding.Ob3())
-	}
-	ph.logger.Info("onboarding already been done before", "message", "will be redirect to home page")
-	return ctx.Redirect("/")
-}
 
 func (ph *pageHandler) NotFound(ctx *fiber.Ctx) error {
 	return Render(ctx, error_handling.NotFound())

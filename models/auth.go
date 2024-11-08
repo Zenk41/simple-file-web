@@ -26,27 +26,6 @@ func (lp *LoginPayload) CheckPassword(encryptedPassword string) error {
 	return nil
 }
 
-type Ob1 struct {
-	LoginPayload LoginPayload
-	IsDone       bool
-}
-
-type Ob2 struct {
-	AuthKey  string
-	Recovery string
-	IsDone   bool
-}
-
-type Ob3 struct {
-	IsDone bool
-}
-
-type OnBoarding struct {
-	Ob1
-	Ob2
-	Ob3
-}
-
 type User struct {
 	ID       uuid.UUID `json:"id"`
 	Username string    `json:"username" validate:"required,min=4,max=8"`
@@ -58,6 +37,7 @@ type User struct {
 
 	OtpSecret  string `json:"otp_secret"`
 	OtpAuthUrl string `json:"otp_auth_url"`
+	
 	CreatedAt  time.Time
 	UpdatedAt  time.Time
 }
@@ -68,7 +48,6 @@ type OTPInput struct {
 
 type Auth struct {
 	User
-	OnBoarding
 }
 
 func (u *User) EncryptPassword(password string) error {

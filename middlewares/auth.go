@@ -22,9 +22,12 @@ type JWTConfig struct {
 }
 
 type JWTClaims struct {
-	ID   string `json:"id"`
-	AMR  string `json:"amr"`
-	Type string `json:"type"` // "access" or "refresh"
+	ID            string `json:"id"`
+	AMR           string `json:"amr"`
+	Type          string `json:"type"`   // "access" or "refresh"
+	Device        string `json:"device"` // "mobile" or "desktop"
+	URL           string `json:"url"`    // URL associated with token issuance
+	TwoFAVerified bool   `json:"twoFA_verified"`
 	jwt.RegisteredClaims
 }
 
@@ -38,15 +41,15 @@ func NewJWTConfig(secretKey string) *JWTConfig {
 }
 
 // GenerateTokens creates both access and refresh tokens
-func (config *JWTConfig) GenerateTokens(userID, authMethod string) (accessToken, refreshToken string, err error) {
+func (config *JWTConfig) GenerateTokens(userID string, otpFaVerified bool, authMethod, device, url string) (accessToken, refreshToken string, err error) {
 	// Generate access token
-	accessToken, err = config.generateToken(userID, authMethod, "access", config.AccessTokenDuration)
+	accessToken, err = config.generateToken(userID, otpFaVerified, authMethod, "access", device, url, config.AccessTokenDuration)
 	if err != nil {
 		return "", "", err
 	}
 
 	// Generate refresh token
-	refreshToken, err = config.generateToken(userID, authMethod, "refresh", config.RefreshTokenDuration)
+	refreshToken, err = config.generateToken(userID, otpFaVerified, authMethod, "refresh", device, url, config.RefreshTokenDuration)
 	if err != nil {
 		return "", "", err
 	}
@@ -55,12 +58,15 @@ func (config *JWTConfig) GenerateTokens(userID, authMethod string) (accessToken,
 }
 
 // generateToken creates a single token
-func (config *JWTConfig) generateToken(userID, authMethod, tokenType string, duration time.Duration) (string, error) {
+func (config *JWTConfig) generateToken(userID string, otpFaVerified bool, authMethod, tokenType, device, url string, duration time.Duration) (string, error) {
 	now := time.Now()
 	claims := JWTClaims{
-		ID:   userID,
-		AMR:  authMethod,
-		Type: tokenType,
+		ID:            userID,
+		AMR:           authMethod,
+		Type:          tokenType,
+		Device:        device,
+		URL:           url,
+		TwoFAVerified: otpFaVerified,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(now.Add(duration)),
 			IssuedAt:  jwt.NewNumericDate(now),
@@ -78,11 +84,18 @@ func IsAuthenticated(config *JWTConfig) fiber.Handler {
 		var tokenString string
 		var tokenMissing bool
 
-		// Check cookie first
+		// Capture URL and determine device type
+		url := c.OriginalURL()
+		userAgent := c.Get("User-Agent")
+		device := "desktop"
+		if strings.Contains(strings.ToLower(userAgent), "mobile") {
+			device = "mobile"
+		}
+
+		// Check for token in cookies or authorization header
 		if cookie := c.Cookies("access_token"); cookie != "" {
 			tokenString = cookie
 		} else {
-			// Check Authorization header
 			authHeader := c.Get("Authorization")
 			if strings.HasPrefix(authHeader, "Bearer ") {
 				tokenString = strings.TrimPrefix(authHeader, "Bearer ")
@@ -91,7 +104,7 @@ func IsAuthenticated(config *JWTConfig) fiber.Handler {
 			}
 		}
 
-		// If token is missing, try to refresh using refresh token
+		// Attempt token refresh if missing
 		if tokenMissing {
 			refreshToken := c.Cookies("refresh_token")
 			if refreshToken == "" {
@@ -100,15 +113,13 @@ func IsAuthenticated(config *JWTConfig) fiber.Handler {
 				})
 			}
 
-			// Try to generate new access token using refresh token
-			newAccessToken, err := handleTokenRefresh(refreshToken, config)
+			newAccessToken, err := handleTokenRefresh(refreshToken, config, device, url)
 			if err != nil {
 				return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 					"error": "invalid refresh token",
 				})
 			}
 
-			// Set new access token cookie
 			cookie := createCookie("access_token", newAccessToken, config.AccessTokenDuration)
 			cookie.SameSite = "Strict"
 			cookie.Secure = true
@@ -117,11 +128,10 @@ func IsAuthenticated(config *JWTConfig) fiber.Handler {
 			tokenString = newAccessToken
 		}
 
-		// Validate token (either original or refreshed)
+		// Validate the token and check if it matches device and URL
 		claims, err := validateToken(tokenString, config.SecretKey)
 		if err != nil {
 			if errors.Is(err, ErrTokenExpired) {
-				// Token is expired, try to refresh
 				refreshToken := c.Cookies("refresh_token")
 				if refreshToken == "" {
 					return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
@@ -129,20 +139,18 @@ func IsAuthenticated(config *JWTConfig) fiber.Handler {
 					})
 				}
 
-				newAccessToken, err := handleTokenRefresh(refreshToken, config)
+				newAccessToken, err := handleTokenRefresh(refreshToken, config, device, url)
 				if err != nil {
 					return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 						"error": "invalid refresh token",
 					})
 				}
 
-				// Set new access token cookie with secure settings
 				cookie := createCookie("access_token", newAccessToken, config.AccessTokenDuration)
 				cookie.SameSite = "Strict"
 				cookie.Secure = true
 				c.Cookie(cookie)
 
-				// Validate new token
 				claims, err = validateToken(newAccessToken, config.SecretKey)
 				if err != nil {
 					return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
@@ -156,6 +164,13 @@ func IsAuthenticated(config *JWTConfig) fiber.Handler {
 			}
 		}
 
+		// Check if device and URL match the token
+		if claims.Device != device || claims.URL != url {
+			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+				"error": "mismatched device or URL",
+			})
+		}
+
 		// Store user info in context
 		c.Locals("user_id", claims.ID)
 		return c.Next()
@@ -164,11 +179,23 @@ func IsAuthenticated(config *JWTConfig) fiber.Handler {
 
 func RedirectIfAuthenticated(config *JWTConfig) fiber.Handler {
 	return func(c *fiber.Ctx) error {
+		// Capture the device type and original URL for validation
+		originalURL := c.OriginalURL()
+		userAgent := c.Get("User-Agent")
+		deviceType := "desktop"
+		if strings.Contains(strings.ToLower(userAgent), "mobi") {
+			deviceType = "mobile"
+		}
+
 		// Check access token first
 		accessToken := c.Cookies("access_token")
 		if accessToken != "" {
 			claims, err := validateToken(accessToken, config.SecretKey)
 			if err == nil && claims.Type == "access" {
+
+				if !claims.TwoFAVerified {
+					return c.Redirect("/login/setup2fa")
+				}
 				// Valid access token - redirect to home
 				return c.Redirect("/")
 			}
@@ -177,13 +204,16 @@ func RedirectIfAuthenticated(config *JWTConfig) fiber.Handler {
 		// If access token is invalid/expired, check refresh token
 		refreshToken := c.Cookies("refresh_token")
 		if refreshToken != "" {
-			claims, err := validateToken(refreshToken, config.SecretKey)
-			if err == nil && claims.Type == "refresh" {
-				// Valid refresh token - generate new access token and redirect
-				newAccessToken, err := handleTokenRefresh(refreshToken, config)
-				if err == nil {
-					// Set new access token cookie
-					c.Cookie(createCookie("access_token", newAccessToken, config.AccessTokenDuration))
+			// Pass deviceType and originalURL to handleTokenRefresh
+			newAccessToken, err := handleTokenRefresh(refreshToken, config, deviceType, originalURL)
+			if err == nil {
+				// Set new access token cookie
+				c.Cookie(createCookie("access_token", newAccessToken, config.AccessTokenDuration))
+				claims, err := validateToken(newAccessToken, config.SecretKey)
+				if err == nil && claims.Type == "access" {
+					if !claims.TwoFAVerified {
+						return c.Redirect("/login/setup2fa")
+					}
 					return c.Redirect("/")
 				}
 			}
@@ -195,18 +225,14 @@ func RedirectIfAuthenticated(config *JWTConfig) fiber.Handler {
 }
 
 // handleTokenRefresh validates refresh token and generates new access token
-func handleTokenRefresh(refreshToken string, config *JWTConfig) (string, error) {
+func handleTokenRefresh(refreshToken string, config *JWTConfig, device, url string) (string, error) {
 	claims, err := validateToken(refreshToken, config.SecretKey)
-	if err != nil {
-		return "", err
-	}
-
-	if claims.Type != "refresh" {
+	if err != nil || claims.Type != "refresh" || claims.Device != device || claims.URL != url {
 		return "", ErrInvalidToken
 	}
 
-	// Generate new access token
-	return config.generateToken(claims.ID, claims.AMR, "access", config.AccessTokenDuration)
+	// Generate a new access token with the original device and URL info
+	return config.generateToken(claims.ID, claims.TwoFAVerified, claims.AMR, "access", device, url, config.AccessTokenDuration)
 }
 
 // validateToken verifies and parses a JWT token
