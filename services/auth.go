@@ -14,7 +14,6 @@ import (
 
 type AuthService interface {
 	ReadUser() (models.User, error)
-	ReadBoarding() (models.OnBoarding, error)
 	CreateUser(payload models.RegisterPayload) error
 	UpdateUser(payload models.User) error
 	ReadUserWithId(id string) (models.User, error)
@@ -50,9 +49,6 @@ func (as *authService) ReadUser() (models.User, error) {
 	return as.auth.User, nil
 }
 
-func (as *authService) ReadBoarding() (models.OnBoarding, error) {
-	return as.auth.OnBoarding, nil
-}
 
 func (as *authService) CreateUser(payload models.RegisterPayload) error {
 	if as.auth.User.ID != uuid.Nil {
