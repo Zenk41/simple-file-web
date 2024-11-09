@@ -19,6 +19,7 @@ type AuthHandler interface {
 	GenerateOtp(ctx *fiber.Ctx) error
 	VerifyOtp(ctx *fiber.Ctx) error
 	ValidateOtp(ctx *fiber.Ctx) error
+	DisableOtp(ctx *fiber.Ctx) error
 }
 
 type authHandler struct {
@@ -73,7 +74,6 @@ func (ah *authHandler) Login(ctx *fiber.Ctx) error {
 	}
 
 	// Validate the password (you would typically compare with hashed password from DB)
-
 	if err := user.CheckPassword(payload.Password); err != nil {
 		return ctx.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 			"status":   "error",
@@ -83,8 +83,11 @@ func (ah *authHandler) Login(ctx *fiber.Ctx) error {
 		})
 	}
 
-	// Generate both tokens
-	accessToken, refreshToken, err := ah.jwtConfig.GenerateTokens(user.ID.String(), user.Password)
+	// Define values for authMethod, device, and url
+	authMethod := "password" // or any specific auth method based on your logic
+	device, url := GetClientValue(ctx)
+
+	accessToken, refreshToken, err := ah.jwtConfig.GenerateTokens(user.ID.String(), false, authMethod, device, url)
 	if err != nil {
 		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": "token generation failed",
@@ -94,13 +97,24 @@ func (ah *authHandler) Login(ctx *fiber.Ctx) error {
 	// Set both cookies
 	middlewares.SetAuthCookies(ctx, accessToken, refreshToken, ah.jwtConfig)
 
+	if user.OtpVerified && user.OtpEnabled {
+		return ctx.Status(fiber.StatusOK).JSON(fiber.Map{
+			"status":        "success",
+			"message":       "success login with email:" + user.Email,
+			"access_token":  accessToken,
+			"refresh_token": refreshToken,
+			"email":         user.Email,
+			"redirect":      "/login/validateotp",
+		})
+	}
+
 	return ctx.Status(fiber.StatusOK).JSON(fiber.Map{
 		"status":        "success",
 		"message":       "success login with email:" + user.Email,
 		"access_token":  accessToken,
 		"refresh_token": refreshToken,
 		"email":         user.Email,
-		"redirect":      "/",
+		"redirect":      "/settings/profile",
 	})
 }
 
@@ -136,7 +150,7 @@ func (ah *authHandler) Register(ctx *fiber.Ctx) error {
 	return ctx.Status(fiber.StatusCreated).JSON(fiber.Map{
 		"status":   "success",
 		"message":  "Successfully registered user",
-		"redirect": "/",
+		"redirect": "/login",
 	})
 }
 
@@ -163,6 +177,17 @@ func (ah *authHandler) GenerateOtp(ctx *fiber.Ctx) error {
 	}
 
 	claim, err := ah.jwtConfig.DecodeToken(ctx.Cookies("access_token"))
+	if err != nil {
+		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"status":  "error",
+			"message": "failed to decode token",
+			"error":   err.Error(),
+		})
+	}
+
+	if claim.TwoFAVerified {
+		return ctx.Redirect("/")
+	}
 
 	user, err := ah.authService.ReadUserWithId(claim.ID)
 	if err != nil {
@@ -171,6 +196,10 @@ func (ah *authHandler) GenerateOtp(ctx *fiber.Ctx) error {
 			"message": "cannot read user",
 			"error":   err.Error(),
 		})
+	}
+
+	if user.OtpEnabled && user.OtpVerified {
+		return ctx.Redirect("/login/validateotp")
 	}
 
 	key, err := totp.Generate(totp.GenerateOpts{
@@ -289,4 +318,51 @@ func (ah *authHandler) ValidateOtp(ctx *fiber.Ctx) error {
 		"otp_valid": true,
 	})
 
+}
+
+func (ah *authHandler) DisableOtp(ctx *fiber.Ctx) error {
+	payload := new(models.OTPInput)
+
+	if err := ctx.BodyParser(&payload); err != nil {
+		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"status":  "error",
+			"message": "Invalid request body",
+			"error":   err.Error(),
+		})
+	}
+
+	claim, err := ah.jwtConfig.DecodeToken(ctx.Cookies("access_token"))
+	if err != nil {
+		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"status":  "error",
+			"message": "failed to decode token",
+			"error":   err.Error(),
+		})
+	}
+
+	user, err := ah.authService.ReadUserWithId(claim.ID)
+	if err != nil {
+		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"status":  "error",
+			"message": "cannot read user",
+			"error":   err.Error(),
+		})
+	}
+
+	user.OtpEnabled = false
+	if err := ah.authService.UpdateUser(user); err != nil {
+		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"status":  "error",
+			"message": "cannot disable otp",
+			"error":   err.Error(),
+		})
+	}
+	return ctx.Status(fiber.StatusOK).JSON(fiber.Map{
+		"otp_disabled": true,
+		"user": fiber.Map{"status": "success",
+			"message":  "otp is disabled",
+			"id":       user.ID,
+			"username": user.Username,
+			"email":    user.Email},
+	})
 }
