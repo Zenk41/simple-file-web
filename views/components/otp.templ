@@ -1,0 +1,192 @@
+package components
+
+templ ValidateOTP() {
+	<main
+		class="flex-grow w-full p-4 m-auto bg-white"
+		x-data="{
+            otp: ['', '', '', '', '', ''],
+            isSubmitting: false,
+            errorMessage: '',
+            successMessage: '',
+            timeLeft: 0,
+            timer: null,
+            
+            init() {
+                this.$nextTick(() => {
+                    if (this.$refs.input0) {
+                        this.$refs.input0.focus()
+                    }
+                    this.syncTimer()
+                })
+            },
+
+            syncTimer() {
+                const calculateTimeLeft = () => {
+                    const epochSeconds = Math.floor(Date.now() / 1000)
+                    return 30 - (epochSeconds % 30)
+                }
+
+                if (this.timer) {
+                    clearInterval(this.timer)
+                }
+                
+                this.timeLeft = calculateTimeLeft()
+                
+                this.timer = setInterval(() => {
+                    const newTimeLeft = calculateTimeLeft()
+                    this.timeLeft = newTimeLeft
+                    
+                    if (newTimeLeft === 30) {
+                        this.otp = ['', '', '', '', '', '']
+                        this.errorMessage = ''
+                        this.successMessage = ''
+                        for (let i = 0; i < 6; i++) {
+                            if (this.$refs['input' + i]) {
+                                this.$refs['input' + i].value = ''
+                            }
+                        }
+                    }
+                }, 1000)
+            },
+
+            focusNext(index) {
+                if (index < 5 && this.$refs['input' + (index + 1)]) {
+                    this.$refs['input' + (index + 1)].focus()
+                }
+            },
+
+            focusPrev(index) {
+                if (index > 0 && this.$refs['input' + (index - 1)]) {
+                    this.$refs['input' + (index - 1)].focus()
+                }
+            },
+
+            handleInput(index, event) {
+                const input = event.target
+                const value = input.value
+                
+                this.errorMessage = ''
+                this.successMessage = ''
+
+                if (!/^\d*$/.test(value)) {
+                    input.value = ''
+                    return
+                }
+
+                this.otp[index] = value
+
+                if (value) {
+                    this.focusNext(index)
+                }
+            },
+
+            handleKeydown(index, event) {
+                if (event.key === 'Backspace' && !this.otp[index]) {
+                    this.focusPrev(index)
+                }
+            },
+
+            handlePaste(event) {
+                event.preventDefault()
+                const paste = (event.clipboardData || window.clipboardData).getData('text')
+                const numbers = paste.match(/\d/g)
+                
+                if (numbers) {
+                    numbers.slice(0, 6).forEach((num, index) => {
+                        if (index < 6) {
+                            this.otp[index] = num
+                            if (this.$refs['input' + index]) {
+                                this.$refs['input' + index].value = num
+                            }
+                        }
+                    })
+                    
+                    const emptyIndex = this.otp.findIndex(x => !x)
+                    const focusIndex = emptyIndex === -1 ? 5 : emptyIndex
+                    if (this.$refs['input' + focusIndex]) {
+                        this.$refs['input' + focusIndex].focus()
+                    }
+                }
+            },
+
+            async handleSubmit() {
+                const otpValue = this.otp.join('')
+                
+                if (otpValue.length !== 6) {
+                    this.errorMessage = 'Please enter all 6 digits'
+                    return
+                }
+
+                this.isSubmitting = true
+                
+                try {
+                    await new Promise(resolve => setTimeout(resolve, 1000))
+                    this.successMessage = 'Successfully authenticated!'
+                    this.errorMessage = ''
+                } catch (error) {
+                    this.errorMessage = 'Invalid authentication code. Please try again.'
+                    this.successMessage = ''
+                } finally {
+                    this.isSubmitting = false
+                }
+            }
+        }"
+	>
+		<div class="max-w-md p-12 mx-auto border border-gray-200 rounded-lg shadow-m">
+			<div class="mb-12 space-y-1 text-center">
+				<h2 class="text-2xl font-light tracking-wide text-gray-900">Verification</h2>
+				<p class="text-sm tracking-wide text-gray-500">
+					Enter your authentication code
+				</p>
+			</div>
+			<form @submit.prevent="handleSubmit" class="space-y-8">
+				<div class="flex justify-between">
+					<template x-for="(digit, index) in otp" :key="index">
+						<input
+							type="text"
+							inputmode="numeric"
+							maxlength="1"
+							class="text-xl font-light text-center transition-colors bg-white border-b-2 border-gray-200 w-11 h-14 focus:border-gray-900 focus:outline-none"
+							:x-ref="'input' + index"
+							:value="digit"
+							@input="handleInput(index, $event)"
+							@keydown="handleKeydown(index, $event)"
+							@paste="handlePaste"
+						/>
+					</template>
+				</div>
+				<div class="flex items-center justify-center space-x-2">
+					<div class="w-1 h-1 bg-gray-400 rounded-full"></div>
+					<div class="text-xs font-light tracking-wider text-gray-400">
+						<span x-text="timeLeft.toString().padStart(2, '0')"></span>
+					</div>
+				</div>
+				<div
+					x-show="errorMessage"
+					x-text="errorMessage"
+					class="text-sm font-light tracking-wide text-center text-gray-500"
+					x-transition
+				></div>
+				<div
+					x-show="successMessage"
+					x-text="successMessage"
+					class="text-sm font-light tracking-wide text-center text-gray-500"
+					x-transition
+				></div>
+				<button
+					type="submit"
+					class="w-full py-4 text-sm tracking-widest text-white transition-colors bg-gray-900 hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
+					:disabled="isSubmitting"
+				>
+					<span x-show="!isSubmitting" class="font-light">Verify</span>
+					<span x-show="isSubmitting" class="font-light">Verifying</span>
+				</button>
+				<div class="text-center">
+					<button type="button" class="text-xs font-light tracking-wide text-gray-400 transition-colors hover:text-gray-600">
+						Need help?
+					</button>
+				</div>
+			</form>
+		</div>
+	</main>
+}

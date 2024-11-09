@@ -1,0 +1,40 @@
+package components
+
+import "github.com/Zenk41/simple-file-web/models"
+
+templ Profile(user models.User) {
+	<main class="flex-grow w-full p-4 m-auto">
+		<div class="max-w-xl p-5 mx-auto bg-white border border-gray-200 rounded-lg shadow-md">
+			<!-- User Info Section -->
+			<div class="mb-6">
+				<div class="mb-4">
+					<h2 class="mb-4 text-xl font-semibold">Profile Information</h2>
+					<div class="space-y-2">
+						<div class="flex items-center">
+							<span class="w-24 font-medium">Username:</span>
+							<span>{ user.Username }</span>
+						</div>
+						<div class="flex items-center">
+							<span class="w-24 font-medium">Email:</span>
+							<span>{ user.Email }</span>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+		<!-- 2FA Section -->
+		if !user.OtpEnabled {
+			<div class="pt-4 border-t">
+				<h3 class="mb-3 text-lg font-semibold">Two-Factor Authentication</h3>
+				<div class="flex items-center space-x-4">
+					<button
+						type="button"
+						class="px-4 py-2 text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+					>
+						Enable 2FA
+					</button>
+				</div>
+			</div>
+		}
+	</main>
+}
