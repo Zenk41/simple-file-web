@@ -42,21 +42,3 @@ func detectDevice(userAgent string) string {
 
 	return "desktop"
 }
-
-// Helper function to normalize URL path
-func normalizeURL(url string) string {
-	// Remove query parameters if present
-	if idx := strings.Index(url, "?"); idx != -1 {
-		url = url[:idx]
-	}
-
-	// Remove trailing slash if present
-	url = strings.TrimSuffix(url, "/")
-
-	// Ensure path starts with /
-	if !strings.HasPrefix(url, "/") {
-		url = "/" + url
-	}
-
-	return url
-}
