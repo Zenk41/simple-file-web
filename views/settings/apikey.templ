@@ -1,0 +1,34 @@
+package views_settings
+
+import (
+	"github.com/Zenk41/simple-file-web/models"
+	"github.com/Zenk41/simple-file-web/views/components"
+	"github.com/Zenk41/simple-file-web/views/layouts"
+)
+
+templ ApiKey(alert models.Alert, user models.User, cfg models.ConfigS3) {
+	@layouts.Base() {
+		@components.Header(user, true)
+		@components.InputKeysS3(cfg)
+		if alert.Type != "" {
+			<div
+				x-data
+				x-init={ `$nextTick(() => {
+        window.dispatchEvent(new CustomEvent('notify', { 
+          detail: { 
+            type: '`+alert.Type+`', 
+            message: '`+alert.Message+`'
+          }
+        }));
+            const url = new URL(window.location);
+        url.searchParams.delete('message');
+        window.history.replaceState(null, '', url);
+
+        // Remove this element from the DOM
+        $el.remove();
+      })` }
+			></div>
+		}
+		@components.Footer()
+	}
+}
