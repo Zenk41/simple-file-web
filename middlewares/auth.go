@@ -2,6 +2,7 @@ package middlewares
 
 import (
 	"errors"
+	"net/url"
 	"strings"
 	"time"
 
@@ -78,19 +79,18 @@ func (config *JWTConfig) generateToken(userID string, otpFaVerified bool, authMe
 	return token.SignedString([]byte(config.SecretKey))
 }
 
-// IsAuthenticated middleware checks for valid access token and handles automatic refresh
 func IsAuthenticated(config *JWTConfig) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		var tokenString string
 		var tokenMissing bool
 
-		// Capture URL and determine device type
-		url := c.OriginalURL()
+		// Improved device detection - now returns normalized value
 		userAgent := c.Get("User-Agent")
-		device := "desktop"
-		if strings.Contains(strings.ToLower(userAgent), "mobile") {
-			device = "mobile"
-		}
+		device := detectDevice(userAgent)
+
+		// Get and normalize URL - use proper URL handling
+		url := c.BaseURL()             // Get base URL first
+		fullURL := url 
 
 		// Check for token in cookies or authorization header
 		if cookie := c.Cookies("access_token"); cookie != "" {
@@ -113,7 +113,7 @@ func IsAuthenticated(config *JWTConfig) fiber.Handler {
 				})
 			}
 
-			newAccessToken, err := handleTokenRefresh(refreshToken, config, device, url)
+			newAccessToken, err := handleTokenRefresh(refreshToken, config, device, fullURL)
 			if err != nil {
 				return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 					"error": "invalid refresh token",
@@ -139,7 +139,7 @@ func IsAuthenticated(config *JWTConfig) fiber.Handler {
 					})
 				}
 
-				newAccessToken, err := handleTokenRefresh(refreshToken, config, device, url)
+				newAccessToken, err := handleTokenRefresh(refreshToken, config, device, fullURL)
 				if err != nil {
 					return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 						"error": "invalid refresh token",
@@ -164,10 +164,20 @@ func IsAuthenticated(config *JWTConfig) fiber.Handler {
 			}
 		}
 
-		// Check if device and URL match the token
-		if claims.Device != device || claims.URL != url {
+		// Improved device and URL matching with better error handling
+		if !isDeviceMatch(claims.Device, device) {
 			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-				"error": "mismatched device or URL",
+				"error":           "device mismatch",
+				"expected_device": claims.Device,
+				"actual_device":   device,
+			})
+		}
+
+		if !isURLMatch(claims.URL, fullURL) {
+			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+				"error":        "URL mismatch",
+				"expected_url": claims.URL,
+				"actual_url":   fullURL,
 			})
 		}
 
@@ -175,6 +185,65 @@ func IsAuthenticated(config *JWTConfig) fiber.Handler {
 		c.Locals("user_id", claims.ID)
 		return c.Next()
 	}
+}
+
+// Helper function to detect device type from User-Agent
+func detectDevice(userAgent string) string {
+	userAgent = strings.ToLower(userAgent)
+
+	// Updated keywords focusing on current mobile platforms
+	mobileKeywords := []string{
+		"mobile", "android", "iphone", "ipad",
+		"ipod", "webos", "silk", "opera mobi",
+		"opera mini", "windows phone", "ucbrowser",
+	}
+
+	for _, keyword := range mobileKeywords {
+		if strings.Contains(userAgent, keyword) {
+			return "mobile"
+		}
+	}
+
+	return "desktop"
+}
+
+// Helper function to normalize URL path
+func normalizeURL(url string) string {
+	// Remove query parameters if present
+	if idx := strings.Index(url, "?"); idx != -1 {
+		url = url[:idx]
+	}
+
+	// Remove trailing slash if present
+	url = strings.TrimSuffix(url, "/")
+
+	// Ensure path starts with /
+	if !strings.HasPrefix(url, "/") {
+		url = "/" + url
+	}
+
+	return url
+}
+
+// Helper function to check if devices match
+func isDeviceMatch(claimDevice, currentDevice string) bool {
+	// Both should be normalized to "mobile" or "desktop"
+	return strings.ToLower(claimDevice) == strings.ToLower(currentDevice)
+}
+
+// Helper function to check if URLs match
+func isURLMatch(claimURL, currentURL string) bool {
+	// Parse URLs to handle comparison properly
+	claim, err1 := url.Parse(claimURL)
+	current, err2 := url.Parse(currentURL)
+
+	if err1 != nil || err2 != nil {
+		return false
+	}
+
+	// Compare host and normalized paths
+	return claim.Host == current.Host &&
+		normalizeURL(claim.Path) == normalizeURL(current.Path)
 }
 
 func RedirectIfAuthenticated(config *JWTConfig) fiber.Handler {
