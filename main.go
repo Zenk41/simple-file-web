@@ -65,7 +65,7 @@ func main() {
 	publicLinkValidation := validation.NewPublicLinkValidator()
 
 	authHandler := handlers.NewAuthHandler(logger, authService, authValidation, jwtConfig)
-	pageHandler := handlers.NewPageHandler(s3Service, authService, logger, publikLinkService)
+	pageHandler := handlers.NewPageHandler(s3Service, authService, logger, publikLinkService, jwtConfig)
 	apiHandler := handlers.NewApiHandler(s3Service, logger, s3Validation)
 	publicLinkHandler := handlers.NewPublicLinkHandler(publikLinkService, authService, logger, publicLinkValidation)
 
@@ -74,6 +74,7 @@ func main() {
 	app.Static("/public", "/public")
 	app.Static("/public/flowbite.min.js", "./node_modules/flowbite/dist/flowbite.min.js")
 	app.Static("/public/alpinejs", "./node_modules/alpinejs/dist/cdn.min.js")
+	app.Static("/public/qrcodejs", "./node_modules/qrcode-generator/qrcode.js")
 
 	routeInit := routes.HandlerList{
 		PageHandler:       pageHandler,
