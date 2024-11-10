@@ -18,6 +18,7 @@ type AuthService interface {
 	UpdateUser(payload models.User) error
 	ReadUserWithId(id string) (models.User, error)
 	UpdateOTP(user models.User) error
+	EnablingOTP(user models.User) error
 }
 
 type authService struct {
@@ -49,7 +50,6 @@ func (as *authService) ReadUser() (models.User, error) {
 	return as.auth.User, nil
 }
 
-
 func (as *authService) CreateUser(payload models.RegisterPayload) error {
 	if as.auth.User.ID != uuid.Nil {
 		as.logger.Error("cannot create new user",
@@ -68,7 +68,6 @@ func (as *authService) CreateUser(payload models.RegisterPayload) error {
 	user.Email = payload.Email
 	user.EncryptPassword(payload.Password)
 	user.Username = payload.Username
-	user.OtpEnabled = true
 
 	as.auth.User = user
 	as.logger.Info("created new user",
@@ -159,7 +158,7 @@ func (as *authService) UpdateOTP(user models.User) error {
 	}
 	as.auth.OtpSecret = user.OtpSecret
 	as.auth.OtpAuthUrl = user.OtpAuthUrl
-	return nil
+	return as.SaveToFile()
 }
 
 func (as *authService) EnablingOTP(user models.User) error {
@@ -167,7 +166,7 @@ func (as *authService) EnablingOTP(user models.User) error {
 		as.logger.Error("cannot enable otp is empty")
 		return fmt.Errorf("cannot enable otp is empty")
 	}
-	user.OtpEnabled = true
-	user.OtpVerified = true
-	return nil
+	as.auth.OtpEnabled = true
+	as.auth.OtpVerified = true
+	return as.SaveToFile()
 }

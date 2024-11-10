@@ -20,7 +20,7 @@ func (hl *HandlerList) RoutesRegister(app *fiber.App) {
 	app.Get("/login", middlewares.RedirectIfAuthenticated(hl.JwtConfig), hl.PageHandler.Login)
 	app.Get("/register", middlewares.RedirectIfAuthenticated(hl.JwtConfig), hl.PageHandler.Register)
 
-	app.Get("/boarding", hl.PageHandler.OnBoarding)
+	app.Get("/login/validateotp", middlewares.RedirectIfAuthenticated(hl.JwtConfig), hl.PageHandler.ValidateOtp)
 
 	// api auth
 	auth := app.Group("/api/auth")
@@ -32,7 +32,7 @@ func (hl *HandlerList) RoutesRegister(app *fiber.App) {
 	otp.Post("/generate", hl.AuthHandler.GenerateOtp)
 	otp.Post("/verify", hl.AuthHandler.VerifyOtp)
 	otp.Post("/validate", hl.AuthHandler.ValidateOtp)
-	// otp.Post("/disable")
+	otp.Post("/disable", hl.AuthHandler.DisableOtp)
 
 	// pages publik
 	publik := app.Group("/p")
@@ -70,6 +70,7 @@ func (hl *HandlerList) RoutesRegister(app *fiber.App) {
 	settings := app.Group("/settings", middlewares.IsAuthenticated(hl.JwtConfig))
 	settings.Get("/key", hl.PageHandler.PostFormKey)
 	settings.Get("/links", hl.PageHandler.PublikLinkList)
+	settings.Get("/profile", hl.PageHandler.Profile)
 
 	app.Use(hl.PageHandler.NotFound)
 

@@ -9,14 +9,17 @@ import (
 
 	"log/slog"
 
+	"github.com/Zenk41/simple-file-web/middlewares"
 	"github.com/Zenk41/simple-file-web/models"
 	"github.com/Zenk41/simple-file-web/services"
 	views_auth "github.com/Zenk41/simple-file-web/views/auth"
 	"github.com/Zenk41/simple-file-web/views/components"
 	"github.com/Zenk41/simple-file-web/views/error_handling"
 	"github.com/Zenk41/simple-file-web/views/home"
+	views_otp "github.com/Zenk41/simple-file-web/views/otp"
 	"github.com/Zenk41/simple-file-web/views/public"
 	"github.com/Zenk41/simple-file-web/views/public_link"
+	views_settings "github.com/Zenk41/simple-file-web/views/settings"
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
 )
@@ -25,6 +28,8 @@ type PageHandler interface {
 	NotFound(ctx *fiber.Ctx) error
 	Login(ctx *fiber.Ctx) error
 	Register(ctx *fiber.Ctx) error
+	ValidateOtp(ctx *fiber.Ctx) error
+	Profile(ctx *fiber.Ctx) error
 	PostFormKey(ctx *fiber.Ctx) error
 
 	Home(ctx *fiber.Ctx) error
@@ -38,12 +43,19 @@ type pageHandler struct {
 	s3Service   services.S3Service
 	authService services.AuthService
 	pubLink     services.PublicLinkManager
+	jwtConfig   *middlewares.JWTConfig
 	logger      *slog.Logger
 }
 
-func NewPageHandler(s3Service services.S3Service, authService services.AuthService, logger *slog.Logger, pubLink services.PublicLinkManager) PageHandler {
-	return &pageHandler{s3Service: s3Service,
-		authService: authService, logger: logger, pubLink: pubLink}
+func NewPageHandler(s3Service services.S3Service,
+	authService services.AuthService,
+	logger *slog.Logger,
+	pubLink services.PublicLinkManager,
+	jwtConfig *middlewares.JWTConfig) PageHandler {
+	return &pageHandler{
+		s3Service:   s3Service,
+		authService: authService, logger: logger, pubLink: pubLink,
+		jwtConfig: jwtConfig}
 }
 
 func (ph *pageHandler) Login(ctx *fiber.Ctx) error {
@@ -61,6 +73,37 @@ func (ph *pageHandler) Register(ctx *fiber.Ctx) error {
 	return Render(ctx, views_auth.Register())
 }
 
+func (ph *pageHandler) ValidateOtp(ctx *fiber.Ctx) error {
+	return Render(ctx, views_otp.ValidationIndex(models.Alert{}, models.User{}))
+}
+
+func (ph *pageHandler) Profile(ctx *fiber.Ctx) error {
+
+	claim, err := ph.jwtConfig.DecodeToken(ctx.Cookies("access_token"))
+	if err != nil {
+		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"status":  "error",
+			"message": "failed to decode token",
+			"error":   err.Error(),
+		})
+	}
+
+	user, err := ph.authService.ReadUserWithId(claim.ID)
+	if err != nil {
+		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"status":  "error",
+			"message": "cannot read user",
+			"error":   err.Error(),
+		})
+	}
+
+	message := ctx.Query("message")
+	if message != "" {
+		return Render(ctx, views_settings.Profile(models.Alert{Type: "success", Message: message}, user))
+	}
+
+	return Render(ctx, views_settings.Profile(models.Alert{}, user))
+}
 
 func (ph *pageHandler) NotFound(ctx *fiber.Ctx) error {
 	return Render(ctx, error_handling.NotFound())
@@ -73,7 +116,7 @@ func (ph *pageHandler) PostFormKey(ctx *fiber.Ctx) error {
 		return ctx.Redirect("/login")
 	}
 	cfg := ph.s3Service.ReadConfig(ctx.Context())
-	return Render(ctx, home.Index(user, components.InputKeysS3(cfg)))
+	return Render(ctx, views_settings.ApiKey(models.Alert{}, user, cfg))
 }
 
 func (ph *pageHandler) Home(ctx *fiber.Ctx) error {
@@ -155,7 +198,7 @@ func (ph *pageHandler) PublikLink(ctx *fiber.Ctx) error {
 
 	if ph.s3Service.IsS3ConfigEmpty() {
 		ph.logger.Warn("S3 configuration is empty")
-		return Render(ctx, home.Index(models.User{}, components.InputKeysS3(models.ConfigS3{})))
+		return ctx.Redirect("/settings/key?message=s3configuration is empty")
 	}
 
 	link := ctx.Params("link")
@@ -187,7 +230,7 @@ func (ph *pageHandler) PublikLinkList(ctx *fiber.Ctx) error {
 
 	if ph.s3Service.IsS3ConfigEmpty() {
 		ph.logger.Warn("S3 configuration is empty")
-		return ctx.Redirect("/settings/key")
+		return ctx.Redirect("/settings/key?message=s3configuration is empty")
 	}
 
 	pageStr := ctx.Query("page")

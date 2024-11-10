@@ -4,6 +4,7 @@
   },
   "dependencies": {
     "alpinejs": "3.14.3",
-    "flowbite": "2.5.2"
+    "flowbite": "2.5.2",
+    "qrcode-generator": "1.4.4"
   }
 }
