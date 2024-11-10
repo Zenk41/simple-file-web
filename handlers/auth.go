@@ -166,15 +166,6 @@ func (ah *authHandler) Logout(ctx *fiber.Ctx) error {
 }
 
 func (ah *authHandler) GenerateOtp(ctx *fiber.Ctx) error {
-	payload := new(models.OTPInput)
-
-	if err := ctx.BodyParser(&payload); err != nil {
-		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"status":  "error",
-			"message": "Invalid request body",
-			"error":   err.Error(),
-		})
-	}
 
 	claim, err := ah.jwtConfig.DecodeToken(ctx.Cookies("access_token"))
 	if err != nil {
@@ -199,7 +190,11 @@ func (ah *authHandler) GenerateOtp(ctx *fiber.Ctx) error {
 	}
 
 	if user.OtpEnabled && user.OtpVerified {
-		return ctx.Redirect("/login/validateotp")
+		return ctx.Status(fiber.StatusForbidden).JSON(fiber.Map{
+			"status":       "failed to generated",
+			"message":      "already setup the otp, need to disable to reverify otp",
+			"error": "generating otp is prohibited when otp is enabled",
+		})
 	}
 
 	key, err := totp.Generate(totp.GenerateOpts{
@@ -228,10 +223,11 @@ func (ah *authHandler) GenerateOtp(ctx *fiber.Ctx) error {
 		"otp_auth_url": key.URL(),
 	})
 }
+
 func (ah *authHandler) VerifyOtp(ctx *fiber.Ctx) error {
 	payload := new(models.OTPInput)
 
-	if err := ctx.BodyParser(&payload); err != nil {
+	if err := ctx.BodyParser(payload); err != nil {
 		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"status":  "error",
 			"message": "Invalid request body",
@@ -265,6 +261,9 @@ func (ah *authHandler) VerifyOtp(ctx *fiber.Ctx) error {
 			"error":   "token is invalid",
 		})
 	}
+	user.OtpEnabled = true
+	user.OtpVerified = true
+	ah.authService.EnablingOTP(user)
 
 	return ctx.Status(fiber.StatusOK).JSON(fiber.Map{
 		"otp_verified": true,
@@ -321,16 +320,6 @@ func (ah *authHandler) ValidateOtp(ctx *fiber.Ctx) error {
 }
 
 func (ah *authHandler) DisableOtp(ctx *fiber.Ctx) error {
-	payload := new(models.OTPInput)
-
-	if err := ctx.BodyParser(&payload); err != nil {
-		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"status":  "error",
-			"message": "Invalid request body",
-			"error":   err.Error(),
-		})
-	}
-
 	claim, err := ah.jwtConfig.DecodeToken(ctx.Cookies("access_token"))
 	if err != nil {
 		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
