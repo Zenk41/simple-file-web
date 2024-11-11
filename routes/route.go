@@ -20,15 +20,15 @@ func (hl *HandlerList) RoutesRegister(app *fiber.App) {
 	app.Get("/login", middlewares.RedirectIfAuthenticated(hl.JwtConfig), hl.PageHandler.Login)
 	app.Get("/register", middlewares.RedirectIfAuthenticated(hl.JwtConfig), hl.PageHandler.Register)
 
-	app.Get("/login/validateotp", middlewares.RedirectIfAuthenticated(hl.JwtConfig), hl.PageHandler.ValidateOtp)
+	app.Get("/login/validateotp", middlewares.IsAuthenticated(hl.JwtConfig, false), hl.PageHandler.ValidateOtp)
 
 	// api auth
 	auth := app.Group("/api/auth")
 	auth.Post("/login", hl.AuthHandler.Login)
 	auth.Post("/register", hl.AuthHandler.Register)
-	auth.Post("/logout", middlewares.IsAuthenticated(hl.JwtConfig), hl.AuthHandler.Logout)
+	auth.Post("/logout", middlewares.IsAuthenticated(hl.JwtConfig, true), hl.AuthHandler.Logout)
 
-	otp := auth.Group("/otp", middlewares.IsAuthenticated(hl.JwtConfig))
+	otp := auth.Group("/otp", middlewares.IsAuthenticated(hl.JwtConfig, false))
 	otp.Post("/generate", hl.AuthHandler.GenerateOtp)
 	otp.Post("/verify", hl.AuthHandler.VerifyOtp)
 	otp.Post("/validate", hl.AuthHandler.ValidateOtp)
@@ -39,11 +39,11 @@ func (hl *HandlerList) RoutesRegister(app *fiber.App) {
 	publik.Get("/:link", hl.PageHandler.PublikLink)
 
 	// home pages
-	app.Get("/", middlewares.IsAuthenticated(hl.JwtConfig), hl.PageHandler.Home)
+	app.Get("/", middlewares.IsAuthenticated(hl.JwtConfig, true), hl.PageHandler.Home)
 
 	// api
 	api := app.Group("/api")
-	api.Use(middlewares.IsAuthenticated(hl.JwtConfig))
+	api.Use(middlewares.IsAuthenticated(hl.JwtConfig, true))
 	api.Get("/download", hl.ApiHandler.DownloadObject)
 	api.Get("/presigned-url", hl.ApiHandler.OpenObject)
 	api.Post("/key", hl.ApiHandler.PostFormKeyS3)
@@ -62,12 +62,12 @@ func (hl *HandlerList) RoutesRegister(app *fiber.App) {
 
 	// pages bucket
 	bucket := app.Group("/b")
-	bucket.Use(middlewares.IsAuthenticated(hl.JwtConfig))
+	bucket.Use(middlewares.IsAuthenticated(hl.JwtConfig, true))
 	bucket.Get("/:bucket", hl.PageHandler.BucketRoot)
 	bucket.Get("/:bucket/*", hl.PageHandler.GetPathObject)
 
 	// key page
-	settings := app.Group("/settings", middlewares.IsAuthenticated(hl.JwtConfig))
+	settings := app.Group("/settings", middlewares.IsAuthenticated(hl.JwtConfig, true))
 	settings.Get("/key", hl.PageHandler.PostFormKey)
 	settings.Get("/links", hl.PageHandler.PublikLinkList)
 	settings.Get("/profile", hl.PageHandler.Profile)
