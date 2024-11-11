@@ -84,10 +84,10 @@ func (ah *authHandler) Login(ctx *fiber.Ctx) error {
 	}
 
 	// Define values for authMethod, device, and url
-	authMethod := "password" // or any specific auth method based on your logic
+	authMethod := "password"
 	device, url := GetClientValue(ctx)
 
-	accessToken, refreshToken, err := ah.jwtConfig.GenerateTokens(user.ID.String(), false, authMethod, device, url)
+	accessToken, refreshToken, err := ah.jwtConfig.GenerateTokens(user.ID.String(), false, user.OtpEnabled, authMethod, device, url)
 	if err != nil {
 		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": "token generation failed",
@@ -104,7 +104,7 @@ func (ah *authHandler) Login(ctx *fiber.Ctx) error {
 			"access_token":  accessToken,
 			"refresh_token": refreshToken,
 			"email":         user.Email,
-			"redirect":      "/login/validateotp",
+			"twoFA_enabled": user.OtpEnabled,
 		})
 	}
 
@@ -114,7 +114,7 @@ func (ah *authHandler) Login(ctx *fiber.Ctx) error {
 		"access_token":  accessToken,
 		"refresh_token": refreshToken,
 		"email":         user.Email,
-		"redirect":      "/settings/profile",
+		"twoFA_enabled": user.OtpEnabled,
 	})
 }
 
@@ -148,9 +148,8 @@ func (ah *authHandler) Register(ctx *fiber.Ctx) error {
 	}
 
 	return ctx.Status(fiber.StatusCreated).JSON(fiber.Map{
-		"status":   "success",
-		"message":  "Successfully registered user",
-		"redirect": "/login",
+		"status":  "success",
+		"message": "Successfully registered user",
 	})
 }
 
@@ -191,9 +190,9 @@ func (ah *authHandler) GenerateOtp(ctx *fiber.Ctx) error {
 
 	if user.OtpEnabled && user.OtpVerified {
 		return ctx.Status(fiber.StatusForbidden).JSON(fiber.Map{
-			"status":       "failed to generated",
-			"message":      "already setup the otp, need to disable to reverify otp",
-			"error": "generating otp is prohibited when otp is enabled",
+			"status":  "failed to generated",
+			"message": "already setup the otp, need to disable to reverify otp",
+			"error":   "generating otp is prohibited when otp is enabled",
 		})
 	}
 
@@ -263,7 +262,14 @@ func (ah *authHandler) VerifyOtp(ctx *fiber.Ctx) error {
 	}
 	user.OtpEnabled = true
 	user.OtpVerified = true
-	ah.authService.EnablingOTP(user)
+	err = ah.authService.EnablingOTP(user)
+	if err != nil {
+		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"status":  "error",
+			"message": "cannot enabling otp",
+			"error":   err.Error(),
+		})
+	}
 
 	return ctx.Status(fiber.StatusOK).JSON(fiber.Map{
 		"otp_verified": true,
@@ -312,6 +318,18 @@ func (ah *authHandler) ValidateOtp(ctx *fiber.Ctx) error {
 			"error":   "token is invalid",
 		})
 	}
+
+	authMethod := "password-with-otp"
+	device, url := GetClientValue(ctx)
+
+	accessToken, refreshToken, err := ah.jwtConfig.GenerateTokens(user.ID.String(), true, user.OtpEnabled, authMethod, device, url)
+	if err != nil {
+		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "token generation failed",
+		})
+	}
+
+	middlewares.SetAuthCookies(ctx, accessToken, refreshToken, ah.jwtConfig)
 
 	return ctx.Status(fiber.StatusOK).JSON(fiber.Map{
 		"otp_valid": true,
