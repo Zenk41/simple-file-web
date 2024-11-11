@@ -6,7 +6,7 @@ import (
 	"github.com/Zenk41/simple-file-web/views/layouts"
 )
 
-templ Register() {
+templ Register(alert models.Alert) {
 	@layouts.Base() {
 		@components.Header(models.User{}, false)
 		<main class="flex-grow max-w-4xl p-4 m-auto">
@@ -383,5 +383,25 @@ templ Register() {
 			</div>
 		</main>
 		@components.Footer()
+		if alert.Type != "" {
+			<div
+				x-data
+				x-init={ `$nextTick(() => {
+        window.dispatchEvent(new CustomEvent('notify', { 
+          detail: { 
+            type: '`+alert.Type+`', 
+            message: '`+alert.Message+`'
+          }
+        }));
+            const url = new URL(window.location);
+        			url.searchParams.delete('message');
+			url.searchParams.delete('type');
+        window.history.replaceState(null, '', url);
+
+        // Remove this element from the DOM
+        $el.remove();
+      })` }
+			></div>
+		}
 	}
 }
