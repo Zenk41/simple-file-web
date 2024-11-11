@@ -8,7 +8,7 @@ RUN apk add --no-cache nodejs npm bash
 WORKDIR /app
 
 # Copy go.mod and go.sum first to leverage Docker cache
-COPY go.mod go.sum ./
+COPY go.mod go.sum ./ 
 
 # Download Go module dependencies
 RUN go mod download
@@ -17,11 +17,14 @@ RUN go mod download
 RUN go install github.com/a-h/templ/cmd/templ@latest
 
 # Install TailwindCSS and Flowbite as local project dependencies
-COPY package.json package-lock.json ./
+COPY package.json package-lock.json ./ 
 RUN npm install
 
 # Copy the rest of the application code
 COPY . .
+
+# Create empty JSON files if they don't exist (but do not copy from build stage)
+RUN touch db_user.json db_publik_link.json
 
 # Build the Go application and run TailwindCSS
 RUN templ generate && npx tailwindcss -i styles/input.css -o public/globals.css && go build -tags dev -o ./tmp/main.exe .
@@ -40,6 +43,9 @@ COPY --from=build /app/tmp/main.exe .
 
 # Copy the public directory from the build stage to the final image
 COPY --from=build /app/public /public
+
+# Copy node_modules from the build stage
+COPY --from=build /app/node_modules /app/node_modules
 
 # Expose any necessary ports (if applicable, for web servers)
 EXPOSE 3000
