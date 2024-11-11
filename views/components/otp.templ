@@ -120,12 +120,36 @@ templ ValidateOTP() {
                 this.isSubmitting = true
                 
                 try {
-                    await new Promise(resolve => setTimeout(resolve, 1000))
+                    const response = await fetch('/api/auth/otp/validate', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            token: otpValue
+                        })
+                    })
+
+                    if (!response.ok) {
+                        throw new Error('Invalid OTP')
+                    }
+
+                    const data = await response.json()
                     this.successMessage = 'Successfully authenticated!'
                     this.errorMessage = ''
+                    
+                    window.location.href = '/';
+                    
                 } catch (error) {
                     this.errorMessage = 'Invalid authentication code. Please try again.'
                     this.successMessage = ''
+
+                    window.dispatchEvent(new CustomEvent('notify', { 
+                        detail: { 
+                            type: data.status, 
+                            message: data.message + ' : '+ data.error 
+                        }
+                    }));
                 } finally {
                     this.isSubmitting = false
                 }

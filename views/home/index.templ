@@ -6,11 +6,30 @@ import (
 	"github.com/Zenk41/simple-file-web/views/layouts"
 )
 
-templ Index(user models.User, component templ.Component) {
+templ Index(alert models.Alert, user models.User, component templ.Component) {
 	@layouts.Base() {
 		@components.Header(user, true)
 		if component != nil {
 			@component
+		}
+		if alert.Type != "" {
+			<div
+				x-data
+				x-init={ `$nextTick(() => {
+        window.dispatchEvent(new CustomEvent('notify', { 
+          detail: { 
+            type: '`+alert.Type+`', 
+            message: '`+alert.Message+`'
+          }
+        }));
+            const url = new URL(window.location);
+        url.searchParams.delete('message');
+        window.history.replaceState(null, '', url);
+
+        // Remove this element from the DOM
+        $el.remove();
+      })` }
+			></div>
 		}
 		@components.Footer()
 	}

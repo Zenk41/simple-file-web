@@ -6,7 +6,7 @@ import (
 	"github.com/Zenk41/simple-file-web/views/layouts"
 )
 
-templ Login() {
+templ Login(alert models.Alert) {
 	@layouts.Base() {
 		@components.Header(models.User{}, false)
 		<main class="flex-grow max-w-4xl p-4 m-auto">
@@ -104,7 +104,12 @@ templ Login() {
 								if (!response.ok) throw new Error(data.message || 'login failed: ' + data.error);
 								
 								// Success handling
-								window.location.href = data.redirect || '/';
+								if (data.twoFA_enabled) {
+									window.location.href = '/login/validateotp';
+								} else {
+									window.location.href = '/';
+								}
+								
 							} catch (error) {
 								this.submitError = error.message || 'An error occurred during login';
 								
@@ -241,5 +246,25 @@ templ Login() {
 			</div>
 		</main>
 		@components.Footer()
+		if alert.Type != "" {
+			<div
+				x-data
+				x-init={ `$nextTick(() => {
+        window.dispatchEvent(new CustomEvent('notify', { 
+          detail: { 
+            type: '`+alert.Type+`', 
+            message: '`+alert.Message+`'
+          }
+        }));
+            const url = new URL(window.location);
+        			url.searchParams.delete('message');
+			url.searchParams.delete('type');
+        window.history.replaceState(null, '', url);
+
+        // Remove this element from the DOM
+        $el.remove();
+      })` }
+			></div>
+		}
 	}
 }
