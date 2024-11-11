@@ -28,6 +28,7 @@ type JWTClaims struct {
 	Type          string `json:"type"`   // "access" or "refresh"
 	Device        string `json:"device"` // "mobile" or "desktop"
 	URL           string `json:"url"`    // URL associated with token issuance
+	TwoFAEnabled  bool   `json:"twoFA_enabled"`
 	TwoFAVerified bool   `json:"twoFA_verified"`
 	jwt.RegisteredClaims
 }
@@ -42,15 +43,15 @@ func NewJWTConfig(secretKey string) *JWTConfig {
 }
 
 // GenerateTokens creates both access and refresh tokens
-func (config *JWTConfig) GenerateTokens(userID string, otpFaVerified bool, authMethod, device, url string) (accessToken, refreshToken string, err error) {
+func (config *JWTConfig) GenerateTokens(userID string, otpFaVerified, otpFaEnabled bool, authMethod, device, url string) (accessToken, refreshToken string, err error) {
 	// Generate access token
-	accessToken, err = config.generateToken(userID, otpFaVerified, authMethod, "access", device, url, config.AccessTokenDuration)
+	accessToken, err = config.generateToken(userID, otpFaVerified, otpFaEnabled, authMethod, "access", device, url, config.AccessTokenDuration)
 	if err != nil {
 		return "", "", err
 	}
 
 	// Generate refresh token
-	refreshToken, err = config.generateToken(userID, otpFaVerified, authMethod, "refresh", device, url, config.RefreshTokenDuration)
+	refreshToken, err = config.generateToken(userID, otpFaVerified, otpFaEnabled, authMethod, "refresh", device, url, config.RefreshTokenDuration)
 	if err != nil {
 		return "", "", err
 	}
@@ -59,7 +60,7 @@ func (config *JWTConfig) GenerateTokens(userID string, otpFaVerified bool, authM
 }
 
 // generateToken creates a single token
-func (config *JWTConfig) generateToken(userID string, otpFaVerified bool, authMethod, tokenType, device, url string, duration time.Duration) (string, error) {
+func (config *JWTConfig) generateToken(userID string, otpFaVerified, otpFaEnabled bool, authMethod, tokenType, device, url string, duration time.Duration) (string, error) {
 	now := time.Now()
 	claims := JWTClaims{
 		ID:            userID,
@@ -68,6 +69,7 @@ func (config *JWTConfig) generateToken(userID string, otpFaVerified bool, authMe
 		Device:        device,
 		URL:           url,
 		TwoFAVerified: otpFaVerified,
+		TwoFAEnabled:  otpFaEnabled,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(now.Add(duration)),
 			IssuedAt:  jwt.NewNumericDate(now),
@@ -79,7 +81,7 @@ func (config *JWTConfig) generateToken(userID string, otpFaVerified bool, authMe
 	return token.SignedString([]byte(config.SecretKey))
 }
 
-func IsAuthenticated(config *JWTConfig) fiber.Handler {
+func IsAuthenticated(config *JWTConfig, require2FA bool) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		var tokenString string
 		var tokenMissing bool
@@ -89,8 +91,8 @@ func IsAuthenticated(config *JWTConfig) fiber.Handler {
 		device := detectDevice(userAgent)
 
 		// Get and normalize URL - use proper URL handling
-		url := c.BaseURL()             // Get base URL first
-		fullURL := url 
+		url := c.BaseURL() // Get base URL first
+		fullURL := url
 
 		// Check for token in cookies or authorization header
 		if cookie := c.Cookies("access_token"); cookie != "" {
@@ -164,6 +166,14 @@ func IsAuthenticated(config *JWTConfig) fiber.Handler {
 			}
 		}
 
+		// Check 2FA if required
+		if require2FA && claims.TwoFAEnabled && !claims.TwoFAVerified {
+			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+				"error":   "unauthorized",
+				"message": "need to verify otp if 2fa enabled",
+			})
+		}
+		
 		// Improved device and URL matching with better error handling
 		if !isDeviceMatch(claims.Device, device) {
 			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
@@ -228,7 +238,7 @@ func normalizeURL(url string) string {
 // Helper function to check if devices match
 func isDeviceMatch(claimDevice, currentDevice string) bool {
 	// Both should be normalized to "mobile" or "desktop"
-	return strings.ToLower(claimDevice) == strings.ToLower(currentDevice)
+	return strings.EqualFold(strings.ToLower(claimDevice), strings.ToLower(currentDevice))
 }
 
 // Helper function to check if URLs match
@@ -262,8 +272,8 @@ func RedirectIfAuthenticated(config *JWTConfig) fiber.Handler {
 			claims, err := validateToken(accessToken, config.SecretKey)
 			if err == nil && claims.Type == "access" {
 
-				if !claims.TwoFAVerified {
-					return c.Redirect("/login/setup2fa")
+				if !claims.TwoFAVerified && claims.TwoFAEnabled {
+					return c.Redirect("/login/validateotp")
 				}
 				// Valid access token - redirect to home
 				return c.Redirect("/")
@@ -280,8 +290,8 @@ func RedirectIfAuthenticated(config *JWTConfig) fiber.Handler {
 				c.Cookie(createCookie("access_token", newAccessToken, config.AccessTokenDuration))
 				claims, err := validateToken(newAccessToken, config.SecretKey)
 				if err == nil && claims.Type == "access" {
-					if !claims.TwoFAVerified {
-						return c.Redirect("/login/setup2fa")
+					if !claims.TwoFAVerified && claims.TwoFAEnabled {
+						return c.Redirect("/login/validateotp")
 					}
 					return c.Redirect("/")
 				}
@@ -301,7 +311,7 @@ func handleTokenRefresh(refreshToken string, config *JWTConfig, device, url stri
 	}
 
 	// Generate a new access token with the original device and URL info
-	return config.generateToken(claims.ID, claims.TwoFAVerified, claims.AMR, "access", device, url, config.AccessTokenDuration)
+	return config.generateToken(claims.ID, claims.TwoFAVerified, claims.TwoFAEnabled, claims.AMR, "access", device, url, config.AccessTokenDuration)
 }
 
 // validateToken verifies and parses a JWT token
