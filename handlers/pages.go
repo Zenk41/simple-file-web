@@ -60,20 +60,46 @@ func NewPageHandler(s3Service services.S3Service,
 
 func (ph *pageHandler) Login(ctx *fiber.Ctx) error {
 	ph.logger.Info("user attempting to log in")
-	return Render(ctx, views_auth.Login())
+
+	message := ctx.Query("message")
+	typ := ctx.Query("type")
+	if message != "" && typ != "" {
+		return Render(ctx, views_auth.Login(models.Alert{Type: typ, Message: message}))
+	}
+	return Render(ctx, views_auth.Login(models.Alert{}))
 }
 
 func (ph *pageHandler) Register(ctx *fiber.Ctx) error {
 	user, err := ph.authService.ReadUser()
 	if user.ID != uuid.Nil && err == nil {
-		ph.logger.Info("user already exist cant do register", "message", err)
-		return ctx.Redirect("/login")
+		ph.logger.Info("User already exists, registration disabled", "message", err)
+		return ctx.Redirect("/login?message=Registration is not available for existing users&type=warning")
 	}
 
-	return Render(ctx, views_auth.Register())
+	message := ctx.Query("message")
+	typ := ctx.Query("type")
+	if message != "" && typ != "" {
+		return Render(ctx, views_auth.Register(models.Alert{Type: typ, Message: message}))
+	}
+
+	return Render(ctx, views_auth.Register(models.Alert{}))
 }
 
 func (ph *pageHandler) ValidateOtp(ctx *fiber.Ctx) error {
+
+	claim, err := ph.jwtConfig.DecodeToken(ctx.Cookies("access_token"))
+	if err != nil {
+		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"status":  "error",
+			"message": "failed to decode token",
+			"error":   err.Error(),
+		})
+	}
+
+	if claim.TwoFAVerified {
+		return ctx.Redirect("/?message=Access already granted&type=warning")
+	}
+
 	return Render(ctx, views_otp.ValidationIndex(models.Alert{}, models.User{}))
 }
 
@@ -98,8 +124,9 @@ func (ph *pageHandler) Profile(ctx *fiber.Ctx) error {
 	}
 
 	message := ctx.Query("message")
-	if message != "" {
-		return Render(ctx, views_settings.Profile(models.Alert{Type: "success", Message: message}, user))
+	typ := ctx.Query("type")
+	if message != "" && typ != "" {
+		return Render(ctx, views_settings.Profile(models.Alert{Type: typ, Message: message}, user))
 	}
 
 	return Render(ctx, views_settings.Profile(models.Alert{}, user))
@@ -110,25 +137,56 @@ func (ph *pageHandler) NotFound(ctx *fiber.Ctx) error {
 }
 
 func (ph *pageHandler) PostFormKey(ctx *fiber.Ctx) error {
-	user, err := ph.authService.ReadUser()
+
+	claim, err := ph.jwtConfig.DecodeToken(ctx.Cookies("access_token"))
 	if err != nil {
-		ph.logger.Info("cannot read user", "message", err)
-		return ctx.Redirect("/login")
+		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"status":  "error",
+			"message": "failed to decode token",
+			"error":   err.Error(),
+		})
 	}
+
+	// Retrieve user by ID from the token claims
+	user, err := ph.authService.ReadUserWithId(claim.ID)
+	if err != nil {
+		ph.logger.Info("Failed to retrieve user information", "error", err)
+		return ctx.Redirect("/login?message=Unable to retrieve user data. Please try again.&type=warning")
+	}
+
+	// Read S3 configuration
 	cfg := ph.s3Service.ReadConfig(ctx.Context())
+
+	// load pages with alert success
+	message := ctx.Query("message")
+	typ := ctx.Query("type")
+	if message != "" && typ != "" {
+		return Render(ctx, views_settings.ApiKey(models.Alert{Type: typ, Message: message}, user, cfg))
+	}
 	return Render(ctx, views_settings.ApiKey(models.Alert{}, user, cfg))
 }
 
 func (ph *pageHandler) Home(ctx *fiber.Ctx) error {
-	if ph.s3Service.IsS3ConfigEmpty() {
-		ph.logger.Warn("S3 configuration is empty")
-		return ctx.Redirect("/settings/key")
+
+	claim, err := ph.jwtConfig.DecodeToken(ctx.Cookies("access_token"))
+	if err != nil {
+		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"status":  "error",
+			"message": "failed to decode token",
+			"error":   err.Error(),
+		})
 	}
 
-	user, err := ph.authService.ReadUser()
+	// Retrieve user by ID from the token claims
+	user, err := ph.authService.ReadUserWithId(claim.ID)
 	if err != nil {
-		ph.logger.Info("cannot read user", "message", err)
-		return ctx.Redirect("/login")
+		ph.logger.Info("Failed to retrieve user information", "error", err)
+		return ctx.Redirect("/login?message=Unable to retrieve user data. Please try again.&type=warning")
+	}
+
+	if ph.s3Service.IsS3ConfigEmpty() {
+		ph.logger.Warn("S3 configuration is empty")
+		return ctx.Redirect("/settings/key?message=S3 configuration is missing. Please configure your S3 settings.&type=warning")
 	}
 
 	str, err := ph.s3Service.ListBucket(ctx.UserContext())
@@ -139,19 +197,36 @@ func (ph *pageHandler) Home(ctx *fiber.Ctx) error {
 
 	bucketList := strings.Join(str, ", ")
 	ph.logger.Info("Successfully listed buckets", slog.String("buckets", bucketList))
-	return Render(ctx, home.Index(user, components.BucketList(str)))
+
+	message := ctx.Query("message")
+	typ := ctx.Query("type")
+	if message != "" && typ != "" {
+		return Render(ctx, home.Index(models.Alert{Type: typ, Message: message}, user, components.BucketList(str)))
+	}
+	return Render(ctx, home.Index(models.Alert{}, user, components.BucketList(str)))
 }
 
 func (ph *pageHandler) BucketRoot(ctx *fiber.Ctx) error {
-	if ph.s3Service.IsS3ConfigEmpty() {
-		ph.logger.Warn("S3 configuration is empty")
-		return ctx.Redirect("/settings/key")
+
+	claim, err := ph.jwtConfig.DecodeToken(ctx.Cookies("access_token"))
+	if err != nil {
+		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"status":  "error",
+			"message": "failed to decode token",
+			"error":   err.Error(),
+		})
 	}
 
-	user, err := ph.authService.ReadUser()
+	// Retrieve user by ID from the token claims
+	user, err := ph.authService.ReadUserWithId(claim.ID)
 	if err != nil {
-		ph.logger.Info("cannot read user", "message", err)
-		return ctx.Redirect("/login")
+		ph.logger.Info("Failed to retrieve user information", "error", err)
+		return ctx.Redirect("/login?message=Unable to retrieve user data. Please try again.&type=warning")
+	}
+
+	if ph.s3Service.IsS3ConfigEmpty() {
+		ph.logger.Warn("S3 configuration is empty")
+		return ctx.Redirect("/settings/key?message=S3 configuration is missing. Please configure your S3 settings.&type=warning")
 	}
 
 	bucket := ctx.Params("bucket")
@@ -160,13 +235,35 @@ func (ph *pageHandler) BucketRoot(ctx *fiber.Ctx) error {
 	strFile, strFolder, err := ph.s3Service.ListPageFiles(ctx.Context(), bucket, "")
 	if err != nil {
 		ph.logger.Error("Failed to list page files", slog.String("bucket", bucket), slog.String("error", err.Error()))
-		return Render(ctx, home.Index(user, nil))
+		return Render(ctx, home.Index(models.Alert{}, user, nil))
 	}
 
-	return Render(ctx, home.Index(user, components.ListObject([]string{bucket}, strFile, strFolder)))
+	message := ctx.Query("message")
+	typ := ctx.Query("type")
+	if message != "" && typ != "" {
+		return Render(ctx, home.Index(models.Alert{Type: typ, Message: message}, user, components.ListObject([]string{bucket}, strFile, strFolder)))
+	}
+
+	return Render(ctx, home.Index(models.Alert{}, user, components.ListObject([]string{bucket}, strFile, strFolder)))
 }
 
 func (ph *pageHandler) GetPathObject(ctx *fiber.Ctx) error {
+	claim, err := ph.jwtConfig.DecodeToken(ctx.Cookies("access_token"))
+	if err != nil {
+		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"status":  "error",
+			"message": "failed to decode token",
+			"error":   err.Error(),
+		})
+	}
+
+	// Retrieve user by ID from the token claims
+	user, err := ph.authService.ReadUserWithId(claim.ID)
+	if err != nil {
+		ph.logger.Info("Failed to retrieve user information", "error", err)
+		return ctx.Redirect("/login?message=Unable to retrieve user data. Please try again.&type=warning")
+	}
+
 	bucket := ctx.Params("bucket")
 	path := ctx.Params("*")
 
@@ -182,23 +279,39 @@ func (ph *pageHandler) GetPathObject(ctx *fiber.Ctx) error {
 		ph.logger.Error("Failed to list page files", slog.String("bucket", bucket), slog.String("decodedPath", decodedPath), slog.String("error", err.Error()))
 	}
 
-	user, err := ph.authService.ReadUser()
-	if err != nil {
-		ph.logger.Info("cannot read user", "message", err)
-		return ctx.Redirect("/login")
-	}
-
 	ph.logger.Info("Accessing path objects", slog.String("bucket", bucket), slog.String("path", path))
 	p := []string{bucket}
 	p = append(p, strings.Split(decodedPath, "/")...)
-	return Render(ctx, home.Index(user, components.ListObject(p, files, folders)))
+
+	message := ctx.Query("message")
+	typ := ctx.Query("type")
+	if message != "" && typ != "" {
+		return Render(ctx, home.Index(models.Alert{Type: typ, Message: message}, user, components.ListObject(p, files, folders)))
+	}
+
+	return Render(ctx, home.Index(models.Alert{}, user, components.ListObject(p, files, folders)))
 }
 
 func (ph *pageHandler) PublikLink(ctx *fiber.Ctx) error {
+	claim, err := ph.jwtConfig.DecodeToken(ctx.Cookies("access_token"))
+	if err != nil {
+		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"status":  "error",
+			"message": "failed to decode token",
+			"error":   err.Error(),
+		})
+	}
+
+	// Retrieve user by ID from the token claims
+	user, err := ph.authService.ReadUserWithId(claim.ID)
+	if err != nil {
+		ph.logger.Info("Failed to retrieve user information", "error", err)
+		return ctx.Redirect("/login?message=Unable to retrieve user data. Please try again.&type=warning")
+	}
 
 	if ph.s3Service.IsS3ConfigEmpty() {
 		ph.logger.Warn("S3 configuration is empty")
-		return ctx.Redirect("/settings/key?message=s3configuration is empty")
+		return ctx.Redirect("/settings/key?message=S3 configuration is missing. Please configure your S3 settings.&type=warning")
 	}
 
 	link := ctx.Params("link")
@@ -214,35 +327,45 @@ func (ph *pageHandler) PublikLink(ctx *fiber.Ctx) error {
 		ph.logger.Error("Failed to list page files by link", slog.String("bucket", res.RealRootBucket), slog.String("decodedPath", res.RealRootPath), slog.String("error", err.Error()))
 	}
 
-	user, err := ph.authService.ReadUser()
-	if err != nil {
-		ph.logger.Info("cannot read user", "message", err)
-		return ctx.Redirect("/login")
-	}
-
 	ph.logger.Info("Accessing path objects with publik link", slog.String("bucket", res.RealRootBucket), slog.String("path", res.RealRootPath), slog.String("link", link))
 	p := []string{res.RealRootBucket}
 	p = append(p, strings.Split(res.RealRootPath, "/")...)
-	return Render(ctx, public.Index(user, public.ListObject(p, files, link)))
+
+	message := ctx.Query("message")
+	typ := ctx.Query("type")
+	if message != "" && typ != "" {
+		return Render(ctx, public.Index(models.Alert{Type: typ, Message: message}, user, public.ListObject(p, files, link)))
+	}
+
+	return Render(ctx, public.Index(models.Alert{}, user, public.ListObject(p, files, link)))
 }
 
 func (ph *pageHandler) PublikLinkList(ctx *fiber.Ctx) error {
+	claim, err := ph.jwtConfig.DecodeToken(ctx.Cookies("access_token"))
+	if err != nil {
+		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"status":  "error",
+			"message": "failed to decode token",
+			"error":   err.Error(),
+		})
+	}
+
+	// Retrieve user by ID from the token claims
+	user, err := ph.authService.ReadUserWithId(claim.ID)
+	if err != nil {
+		ph.logger.Info("Failed to retrieve user information", "error", err)
+		return ctx.Redirect("/login?message=Unable to retrieve user data. Please try again.&type=warning")
+	}
 
 	if ph.s3Service.IsS3ConfigEmpty() {
 		ph.logger.Warn("S3 configuration is empty")
-		return ctx.Redirect("/settings/key?message=s3configuration is empty")
+		return ctx.Redirect("/settings/key?message=S3 configuration is missing. Please configure your S3 settings.&type=warning")
 	}
 
 	pageStr := ctx.Query("page")
 	page, err := strconv.Atoi(pageStr)
 	if err != nil || page < 1 {
 		page = 1
-	}
-
-	user, err := ph.authService.ReadUser()
-	if err != nil {
-		ph.logger.Info("cannot read user", "message", err)
-		return ctx.Redirect("/login")
 	}
 
 	links := ph.pubLink.ReadPublicLinks()
@@ -252,6 +375,7 @@ func (ph *pageHandler) PublikLinkList(ctx *fiber.Ctx) error {
 	totalPages := int(math.Ceil(float64(totalItems) / float64(itemsPerPage)))
 
 	message := ctx.Query("message")
+	typ := ctx.Query("type")
 
 	// Ensure the page value is within the valid range
 	if page > totalPages {
@@ -259,8 +383,9 @@ func (ph *pageHandler) PublikLinkList(ctx *fiber.Ctx) error {
 
 		// Build the redirect URL with the message parameter
 		redirectURL := fmt.Sprintf("/settings/links?page=%d", page)
-		if message != "" {
+		if message != "" && typ != "" {
 			redirectURL += fmt.Sprintf("&message=%s", message)
+			redirectURL += fmt.Sprintf("&type=%s", typ)
 		}
 
 		// Update the URL to reflect the adjusted page value and message
@@ -285,8 +410,8 @@ func (ph *pageHandler) PublikLinkList(ctx *fiber.Ctx) error {
 		bucketData[bucket] = folders
 	}
 
-	if message != "" {
-		return Render(ctx, public_link.Index(bucketData, models.Alert{Type: "success", Message: message}, user, currentLinks, page, startIndex, endIndex, totalPages, totalItems))
+	if message != "" && typ != "" {
+		return Render(ctx, public_link.Index(bucketData, models.Alert{Type: typ, Message: message}, user, currentLinks, page, startIndex, endIndex, totalPages, totalItems))
 	}
 
 	return Render(ctx, public_link.Index(bucketData, models.Alert{}, user, currentLinks, page, startIndex, endIndex, totalPages, totalItems))
