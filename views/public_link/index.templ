@@ -23,7 +23,8 @@ templ Index(buckets BucketData, alert models.Alert, user models.User, currlinks 
          }
        }));
 					const url = new URL(window.location);
-			url.searchParams.delete('message');
+						url.searchParams.delete('message');
+			url.searchParams.delete('type');
 			window.history.replaceState(null, '', url);
 
 			// Remove this element from the DOM
