@@ -27,10 +27,11 @@ type authHandler struct {
 	authService services.AuthService
 	validator   *validator.Validate
 	jwtConfig   *middlewares.JWTConfig
+	Issuer      string
 }
 
-func NewAuthHandler(logger *slog.Logger, authService services.AuthService, validation *validator.Validate, jwtConfig *middlewares.JWTConfig) AuthHandler {
-	return &authHandler{logger: logger, authService: authService, validator: validation, jwtConfig: jwtConfig}
+func NewAuthHandler(logger *slog.Logger, authService services.AuthService, validation *validator.Validate, jwtConfig *middlewares.JWTConfig, Issuer string) AuthHandler {
+	return &authHandler{logger: logger, authService: authService, validator: validation, jwtConfig: jwtConfig, Issuer: Issuer}
 }
 
 func (ah *authHandler) Login(ctx *fiber.Ctx) error {
@@ -197,7 +198,7 @@ func (ah *authHandler) GenerateOtp(ctx *fiber.Ctx) error {
 	}
 
 	key, err := totp.Generate(totp.GenerateOpts{
-		Issuer:      "localhost:3000",
+		Issuer:      ah.Issuer,
 		AccountName: user.Email,
 		SecretSize:  15,
 	})

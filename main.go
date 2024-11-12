@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"strconv"
+	"strings"
 	"time"
 
 	// "strings"
@@ -64,7 +65,7 @@ func main() {
 	s3Validation := validation.NewS3Validator()
 	publicLinkValidation := validation.NewPublicLinkValidator()
 
-	authHandler := handlers.NewAuthHandler(logger, authService, authValidation, jwtConfig)
+	authHandler := handlers.NewAuthHandler(logger, authService, authValidation, jwtConfig, strings.Split(originURL, ",")[0])
 	pageHandler := handlers.NewPageHandler(s3Service, authService, logger, publikLinkService, jwtConfig)
 	apiHandler := handlers.NewApiHandler(s3Service, logger, s3Validation)
 	publicLinkHandler := handlers.NewPublicLinkHandler(publikLinkService, authService, logger, publicLinkValidation)
