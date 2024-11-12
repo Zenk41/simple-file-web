@@ -30,6 +30,7 @@ func StructuredLogger() fiber.Handler {
 			slog.Int("status_code", c.Response().StatusCode()),
 			slog.String("latency", time.Since(start).String()),
 			slog.Int("body_size", len(c.Response().Body())),
+			slog.String("user_agent", string(c.Get("User-Agent"))),
 		}
 
 		if raw != "" {
@@ -47,18 +48,17 @@ func StructuredLogger() fiber.Handler {
 	}
 }
 
-
 func ConfigureLogger(env string) *slog.Logger {
 	var handler slog.Handler
 
 	if env == "production" {
-			handler = slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
-					Level: slog.LevelInfo, // Only log INFO level and above in production
-			})
+		handler = slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
+			Level: slog.LevelInfo, // Only log INFO level and above in production
+		})
 	} else {
-			handler = slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
-					Level: slog.LevelDebug, // Log everything, including DEBUG, in development
-			})
+		handler = slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
+			Level: slog.LevelDebug, // Log everything, including DEBUG, in development
+		})
 	}
 
 	logger := slog.New(handler)

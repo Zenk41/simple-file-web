@@ -174,15 +174,6 @@ func IsAuthenticated(config *JWTConfig, require2FA bool) fiber.Handler {
 			})
 		}
 		
-		// Improved device and URL matching with better error handling
-		if !isDeviceMatch(claims.Device, device) {
-			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-				"error":           "device mismatch",
-				"expected_device": claims.Device,
-				"actual_device":   device,
-			})
-		}
-
 		if !isURLMatch(claims.URL, fullURL) {
 			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 				"error":        "URL mismatch",
@@ -233,12 +224,6 @@ func normalizeURL(url string) string {
 	}
 
 	return url
-}
-
-// Helper function to check if devices match
-func isDeviceMatch(claimDevice, currentDevice string) bool {
-	// Both should be normalized to "mobile" or "desktop"
-	return strings.EqualFold(strings.ToLower(claimDevice), strings.ToLower(currentDevice))
 }
 
 // Helper function to check if URLs match
