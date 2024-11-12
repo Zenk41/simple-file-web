@@ -86,6 +86,7 @@ func (as *authService) UpdateUser(payload models.User) error {
 	as.auth.User.Username = payload.Username
 	as.auth.User.Email = payload.Email
 	as.auth.User.UpdatedAt = time.Now()
+	as.auth.User.OtpEnabled = payload.OtpEnabled
 	as.logger.Info("user updated",
 		slog.String("id", as.auth.User.ID.String()),
 		slog.String("username", as.auth.User.Username),
