@@ -20,9 +20,9 @@ templ ApiKey(alert models.Alert, user models.User, cfg models.ConfigS3) {
             message: '`+alert.Message+`'
           }
         }));
-            const url = new URL(window.location);
-        			url.searchParams.delete('message');
-			url.searchParams.delete('type');
+        const url = new URL(window.location);
+        url.searchParams.delete('message');
+				url.searchParams.delete('type');
         window.history.replaceState(null, '', url);
 
         // Remove this element from the DOM

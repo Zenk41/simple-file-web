@@ -120,8 +120,9 @@ templ Profile(user models.User) {
                     this.success = '2FA has been successfully activated!';
                     setTimeout(() => this.closeModal(), 2000);
 										const url = new URL(window.location.href);
-								url.searchParams.append('message', data.message); // This preserves existing params and adds message
-								window.location.href = url.toString();
+										url.searchParams.append('message',  this.success);
+										url.searchParams.append('type', 'success');
+										window.location.href = url.toString();
                 }
             } catch (error) {
                 this.error = error.message;

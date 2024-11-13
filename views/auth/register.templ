@@ -173,10 +173,19 @@ templ Register(alert models.Alert) {
 							}
 							
 							// Registration successful
-							window.location.href = '/login';  // Redirect to login page
+							const url = new URL('/login', window.location.origin);
+							url.searchParams.append('message', data.message);
+							url.searchParams.append('type', 'success');
+							window.location.href = url.toString();
 							
 						} catch (error) {
 							this.submitError = error.message || 'An error occurred during registration';
+							window.dispatchEvent(new CustomEvent('notify', { 
+									detail: { 
+										type: 'error', // Explicitly set success type
+										message: this.submitError
+									}
+							}));
 						} finally {
 							this.submitting = false;
 							setLoading(false);
@@ -393,9 +402,9 @@ templ Register(alert models.Alert) {
             message: '`+alert.Message+`'
           }
         }));
-            const url = new URL(window.location);
-        			url.searchParams.delete('message');
-			url.searchParams.delete('type');
+      	const url = new URL(window.location);
+        url.searchParams.delete('message');
+				url.searchParams.delete('type');
         window.history.replaceState(null, '', url);
 
         // Remove this element from the DOM

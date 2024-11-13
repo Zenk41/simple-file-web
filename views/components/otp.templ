@@ -138,7 +138,10 @@ templ ValidateOTP() {
                     this.successMessage = 'Successfully authenticated!'
                     this.errorMessage = ''
                     
-                    window.location.href = '/';
+                    const url = new URL('/', window.location.origin);
+                    url.searchParams.append('message', this.successMessage);
+                    url.searchParams.append('type', 'success');
+                    window.location.href = url.toString();
                     
                 } catch (error) {
                     this.errorMessage = 'Invalid authentication code. Please try again.'
