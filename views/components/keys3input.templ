@@ -170,6 +170,10 @@ templ InputKeysS3(cfg models.ConfigS3) {
 												message: data.message, 
 										}
 								}));
+								const url = new URL(window.location.href);
+								url.searchParams.append('message', data.message);
+								url.searchParams.append('type', 'success');
+								window.location.href = url.toString();
 							
 							} catch (error) {
 								this.submitError = error.message || 'An error occurred during submitting s3 config';

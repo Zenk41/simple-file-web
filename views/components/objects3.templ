@@ -128,10 +128,16 @@ templ ListObject(dirs []string, files []string, folders []string) {
 										.then(data => {
 												deleteInProgress = false;
 												if (data.redirect) {
-														window.location.href = data.redirect;
+														const url = new URL(data.redirect, window.location.origin);
+														url.searchParams.append('message', data.message);
+														url.searchParams.append('type', 'success');
+														window.location.href = url.toString();
 												} else {
 														loading = false;
-														window.location.reload();
+														const url = new URL(window.location.href);
+														url.searchParams.append('message', data.message);
+														url.searchParams.append('type', 'success');
+														window.location.href = url.toString();
 												}
 										})
 										.catch(error => {
@@ -342,9 +348,15 @@ templ ListObject(dirs []string, files []string, folders []string) {
 												}
 												
 												if (response.redirect) {
-														window.location.href = response.redirect;
+														const url = new URL(response.redirect, window.location.origin);
+														url.searchParams.append('message', response.message);
+														url.searchParams.append('type', 'success');
+														window.location.href = url.toString();
 												} else {
-														window.location.reload();
+														const url = new URL(window.location.href);
+														url.searchParams.append('message', response.message);
+														url.searchParams.append('type', 'success');
+														window.location.href = url.toString();
 												}
 					
 										} else {
@@ -407,9 +419,15 @@ templ ListObject(dirs []string, files []string, folders []string) {
 														modal.classList.add('hidden'); 
 														
 														if (data.redirect) {
-																window.location.href = data.redirect;
+																const url = new URL(data.redirect, window.location.origin);
+																url.searchParams.append('message', data.message);
+																url.searchParams.append('type', 'success');
+																window.location.href = url.toString();
 														} else {
-																window.location.reload();
+																const url = new URL(window.location.href);
+																url.searchParams.append('message', data.message);
+																url.searchParams.append('type', 'success');
+																window.location.href = url.toString();
 														}
 												} else {
 														alert(data.error || 'Failed to rename item');
@@ -522,16 +540,16 @@ templ ListObject(dirs []string, files []string, folders []string) {
 						}
 				};
 		}
-			document.body.addEventListener('htmx:afterRequest', function (event) {
-						// Check if the request was successful
-						if (event.detail.xhr.status === 200) {
-								const response = JSON.parse(event.detail.xhr.responseText);
-								if (response.redirect) {
-										window.location.href = response.redirect; // Redirect
-								}
-						}
+			// document.body.addEventListener('htmx:afterRequest', function (event) {
+			// 			// Check if the request was successful
+			// 			if (event.detail.xhr.status === 200) {
+			// 					const response = JSON.parse(event.detail.xhr.responseText);
+			// 					if (response.redirect) {
+			// 							window.location.href = response.redirect; // Redirect
+			// 					}
+			// 			}
 						
-				});
+			// 	});
 </script>
 	</main>
 }

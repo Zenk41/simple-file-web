@@ -22,8 +22,8 @@ templ Index(buckets BucketData, alert models.Alert, user models.User, currlinks 
            message: '`+alert.Message+`'
          }
        }));
-					const url = new URL(window.location);
-						url.searchParams.delete('message');
+			const url = new URL(window.location);
+			url.searchParams.delete('message');
 			url.searchParams.delete('type');
 			window.history.replaceState(null, '', url);
 

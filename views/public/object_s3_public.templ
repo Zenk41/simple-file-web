@@ -167,7 +167,10 @@ document.body.addEventListener('htmx:afterRequest', function (event) {
         if (event.detail.xhr.status === 200) {
             const response = JSON.parse(event.detail.xhr.responseText);
             if (response.redirect) {
-                window.location.href = response.redirect; // Redirect
+                const url = new URL(response.redirect, window.location.origin);
+                url.searchParams.append('message', response.message);
+                url.searchParams.append('type', 'success');
+                window.location.href = url.toString();
             }
         }
 				

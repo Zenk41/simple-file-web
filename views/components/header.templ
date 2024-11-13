@@ -25,10 +25,15 @@ templ Header(user models.User, isLogin bool) {
 									},
 									credentials: 'include' // Important for cookies
 								});
+
+								const data = await response.json();
 										
 								if (response.ok) {
 										// Redirect to login page after successful logout
-										window.location.href = '/login';
+										const url = new URL('/login', window.location.origin);
+										url.searchParams.append('message',data.message);
+										url.searchParams.append('type', 'success');
+										window.location.href = url.toString();
 								} else {
 										console.error('Logout failed');
 								}

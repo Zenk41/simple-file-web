@@ -1318,25 +1318,33 @@ templ PublikLinkCreateModalWithButton(buckets map[string][]string) {
 										privacy: this.fields.privacy.value,
 									})
 								});
-								
+
 								const data = await response.json();
-								const url = new URL(window.location.href);
-								url.searchParams.append('message', data.message); // This preserves existing params and adds message
-								window.location.href = url.toString();
 								
 								if (!response.ok) {
 									throw new Error(data.error || 'Failed to submit form');
 								}
+								
 								window.dispatchEvent(new CustomEvent('notify', { 
 									detail: { 
 										type: 'success', // Explicitly set success type
 										message: data.message
 									}
 								}));
-
+	
+								const url = new URL(window.location.href);
+								url.searchParams.append('message', data.message);
+								url.searchParams.append('type', 'success');
+								window.location.href = url.toString();
 								
 							} catch (error) {
 								this.submitError = error.message;
+								window.dispatchEvent(new CustomEvent('notify', { 
+									detail: { 
+										type: 'error', // Explicitly set success type
+										message: error.message
+									}
+								}));
 							} finally {
 								this.submitting = false;
 								setLoading(false);

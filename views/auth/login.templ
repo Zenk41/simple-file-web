@@ -105,20 +105,26 @@ templ Login(alert models.Alert) {
 								
 								// Success handling
 								if (data.twoFA_enabled) {
-									window.location.href = '/login/validateotp';
+									const url = new URL('/login/validateotp', window.location.origin);
+									url.searchParams.append('message', data.message);
+									url.searchParams.append('type', 'success');
+									window.location.href = url.toString();
 								} else {
-									window.location.href = '/';
+									const url = new URL('/', window.location.origin);
+									url.searchParams.append('message', data.message);
+									url.searchParams.append('type', 'success');
+									window.location.href = url.toString();
 								}
 								
 							} catch (error) {
 								this.submitError = error.message || 'An error occurred during login';
-								
-								console.error('Login error:', error);
 								// Show error in UI
-								this.$dispatch('show-toast', { 
-									message: this.submitError,
-									type: 'error'
-								});
+								window.dispatchEvent(new CustomEvent('notify', { 
+									detail: { 
+										type: 'error', // Explicitly set success type
+										message: this.submitError
+									}
+								}));
 							} finally {
 								this.submitting = false;
 								setLoading(false);

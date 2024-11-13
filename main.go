@@ -65,7 +65,7 @@ func main() {
 	s3Validation := validation.NewS3Validator()
 	publicLinkValidation := validation.NewPublicLinkValidator()
 
-	authHandler := handlers.NewAuthHandler(logger, authService, authValidation, jwtConfig, strings.Split(originURL, ",")[0])
+	authHandler := handlers.NewAuthHandler(logger, authService, authValidation, jwtConfig, getFirstURL(originURL))
 	pageHandler := handlers.NewPageHandler(s3Service, authService, logger, publikLinkService, jwtConfig)
 	apiHandler := handlers.NewApiHandler(s3Service, logger, s3Validation)
 	publicLinkHandler := handlers.NewPublicLinkHandler(publikLinkService, authService, logger, publicLinkValidation)
@@ -73,9 +73,9 @@ func main() {
 	app.Use(middlewares.StructuredLogger())
 
 	app.Static("/public", "/public")
-	app.Static("/public/flowbite.min.js", "/app/node_modules/flowbite/dist/flowbite.min.js")
-	app.Static("/public/alpine.js", "/app/node_modules/alpinejs/dist/cdn.min.js")
-	app.Static("/public/qrcode.js", "/app/node_modules/qrcode-generator/qrcode.js")
+	app.Static("/public/flowbite.min.js", "/node_modules/flowbite/dist/flowbite.min.js")
+	app.Static("/public/alpine.js", "/node_modules/alpinejs/dist/cdn.min.js")
+	app.Static("/public/qrcode.js", "/node_modules/qrcode-generator/qrcode.js")
 
 	routeInit := routes.HandlerList{
 		PageHandler:       pageHandler,
@@ -94,4 +94,12 @@ func main() {
 		log.Fatalf("Failed to start server: %v", err)
 	}
 
+}
+
+func getFirstURL(originURL string) string {
+	urls := strings.Split(originURL, ",")
+	if len(urls) > 0 {
+		return strings.TrimSpace(urls[0])
+	}
+	return ""
 }
