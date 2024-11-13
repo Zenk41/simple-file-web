@@ -362,13 +362,17 @@ func (ph *pageHandler) PublikLinkList(ctx *fiber.Ctx) error {
 		return ctx.Redirect("/settings/key?message=S3 configuration is missing. Please configure your S3 settings.&type=warning")
 	}
 
+	links := ph.pubLink.ReadPublicLinks()
+	if links == nil {
+		ph.logger.Warn("links is empty")
+		return Render(ctx, public_link.Index(nil, models.Alert{Type: "warning", Message: "links is empty"}, user, nil, 0, 0, 0, 0, 0))
+	}
+
 	pageStr := ctx.Query("page")
 	page, err := strconv.Atoi(pageStr)
 	if err != nil || page < 1 {
 		page = 1
 	}
-
-	links := ph.pubLink.ReadPublicLinks()
 
 	const itemsPerPage = 5
 	totalItems := len(links)
@@ -378,20 +382,16 @@ func (ph *pageHandler) PublikLinkList(ctx *fiber.Ctx) error {
 	typ := ctx.Query("type")
 
 	// Ensure the page value is within the valid range
-	if page > totalPages {
+	if totalPages > 0 && page > totalPages {
 		page = totalPages
-
-		// Build the redirect URL with the message parameter
 		redirectURL := fmt.Sprintf("/settings/links?page=%d", page)
 		if message != "" && typ != "" {
-			redirectURL += fmt.Sprintf("&message=%s", message)
-			redirectURL += fmt.Sprintf("&type=%s", typ)
+			redirectURL += fmt.Sprintf("&message=%s&type=%s", message, typ)
 		}
-
-		// Update the URL to reflect the adjusted page value and message
 		return ctx.Redirect(redirectURL)
+	} else if totalPages == 0 {
+		page = 1 // Set default page if there are no items
 	}
-
 	// Calculate start and end index for current page
 	startIndex := (page - 1) * itemsPerPage
 	endIndex := min(startIndex+itemsPerPage, totalItems)
