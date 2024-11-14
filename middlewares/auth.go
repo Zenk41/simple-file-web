@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Zenk41/simple-file-web/views/error_handling"
 	"github.com/gofiber/fiber/v2"
 	"github.com/golang-jwt/jwt/v5"
 )
@@ -81,7 +82,7 @@ func (config *JWTConfig) generateToken(userID string, otpFaVerified, otpFaEnable
 	return token.SignedString([]byte(config.SecretKey))
 }
 
-func IsAuthenticated(config *JWTConfig, require2FA bool) fiber.Handler {
+func IsAuthenticated(config *JWTConfig, require2FA bool, isPage bool) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		var tokenString string
 		var tokenMissing bool
@@ -110,6 +111,10 @@ func IsAuthenticated(config *JWTConfig, require2FA bool) fiber.Handler {
 		if tokenMissing {
 			refreshToken := c.Cookies("refresh_token")
 			if refreshToken == "" {
+				if isPage {
+					c.Set("Content-Type", "text/html")
+					return error_handling.Unauthorized().Render(c.Context(), c.Response().BodyWriter())
+				}
 				return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 					"error": "unauthorized",
 				})
@@ -117,6 +122,10 @@ func IsAuthenticated(config *JWTConfig, require2FA bool) fiber.Handler {
 
 			newAccessToken, err := handleTokenRefresh(refreshToken, config, device, fullURL)
 			if err != nil {
+				if isPage {
+					c.Set("Content-Type", "text/html")
+					return error_handling.InvalidRefreshToken().Render(c.Context(), c.Response().BodyWriter())
+				}
 				return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 					"error": "invalid refresh token",
 				})
@@ -143,6 +152,10 @@ func IsAuthenticated(config *JWTConfig, require2FA bool) fiber.Handler {
 
 				newAccessToken, err := handleTokenRefresh(refreshToken, config, device, fullURL)
 				if err != nil {
+					if isPage {
+						c.Set("Content-Type", "text/html")
+						return error_handling.InvalidRefreshToken().Render(c.Context(), c.Response().BodyWriter())
+					}
 					return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 						"error": "invalid refresh token",
 					})
@@ -168,12 +181,15 @@ func IsAuthenticated(config *JWTConfig, require2FA bool) fiber.Handler {
 
 		// Check 2FA if required
 		if require2FA && claims.TwoFAEnabled && !claims.TwoFAVerified {
+			if isPage {
+				return c.Redirect("/login/validateotp?message=need to verify otp if 2fa enabled&type=warning")
+			}
 			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 				"error":   "unauthorized",
 				"message": "need to verify otp if 2fa enabled",
 			})
 		}
-		
+
 		if !isURLMatch(claims.URL, fullURL) {
 			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 				"error":        "URL mismatch",

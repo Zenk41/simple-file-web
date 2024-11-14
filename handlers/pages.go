@@ -99,6 +99,11 @@ func (ph *pageHandler) ValidateOtp(ctx *fiber.Ctx) error {
 	if claim.TwoFAVerified {
 		return ctx.Redirect("/?message=Access already granted&type=warning")
 	}
+	message := ctx.Query("message")
+	typ := ctx.Query("type")
+	if message != "" && typ != "" {
+		return Render(ctx, views_otp.ValidationIndex(models.Alert{Type: typ, Message: message}, models.User{}))
+	}
 
 	return Render(ctx, views_otp.ValidationIndex(models.Alert{}, models.User{}))
 }
