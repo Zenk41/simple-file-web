@@ -320,6 +320,16 @@ func (ph *pageHandler) PublikLink(ctx *fiber.Ctx) error {
 		return Render(ctx, error_handling.NotFound())
 	}
 
+	if res.Privacy == "PRIVATE" {
+		key := ctx.Query("access-key")
+		if key == "" {
+			return Render(ctx, error_handling.InvalidKeyAccesing(models.Alert{Type: "warning", Message: "access key empty"}))
+		}
+		if res.AccessKey != key {
+			return Render(ctx, error_handling.InvalidKeyAccesing(models.Alert{Type: "error", Message: "access key not valid"}))
+		}
+	}
+
 	files, _, err := ph.s3Service.ListPageFiles(
 		ctx.Context(),
 		res.RealRootBucket+"/",
