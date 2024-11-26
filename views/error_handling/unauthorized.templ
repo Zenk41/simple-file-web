@@ -102,3 +102,74 @@ templ InvalidToken() {
 		@components.Footer()
 	}
 }
+
+templ InvalidKeyAccesing(alert models.Alert) {
+	@layouts.Base() {
+		@components.Header(models.User{}, false)
+		<main class="m-auto">
+			<section class="bg-white dark:bg-black">
+				<div class="max-w-screen-xl px-4 py-8 mx-auto lg:py-16 lg:px-6">
+					<div class="max-w-screen-sm mx-auto text-center">
+						<div class="mb-4 animate-bounce">
+							<span class="text-8xl" role="img" aria-label="Lock Emoji">🔒</span>
+						</div>
+						<h1 class="mb-4 font-extrabold tracking-tight text-black text-7xl lg:text-9xl dark:text-white">Access</h1>
+						<p class="mb-4 text-3xl font-bold tracking-tight text-gray-900 md:text-4xl dark:text-white">Restricted Area</p>
+						<p class="mb-4 text-lg font-light text-gray-600 dark:text-gray-400">
+							Enter the access key to proceed.
+						</p>
+						<div
+							x-data="{ 
+								accessKey: '', 
+								goToPage() {
+									const url = new URL(window.location.href);
+									url.searchParams.set('access-key', this.accessKey);
+									window.location.href = url.toString();
+								}
+							}"
+							class="flex flex-col items-center space-y-4"
+						>
+							<input
+								x-model="accessKey"
+								type="password"
+								placeholder="Enter Access Key"
+								required
+								class="w-full max-w-xs px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black dark:focus:ring-white"
+							/>
+							<button
+								@click="goToPage()"
+								class="inline-flex items-center px-5 py-2.5 text-sm font-medium text-white bg-black rounded-lg hover:bg-gray-800 focus:ring-4 focus:outline-none focus:ring-gray-300 dark:bg-white dark:text-black dark:hover:bg-gray-200 dark:focus:ring-gray-700 transition-colors duration-300"
+							>
+								Access Page
+								<svg class="w-5 h-5 ml-2 -mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"></path>
+								</svg>
+							</button>
+						</div>
+					</div>
+				</div>
+			</section>
+		</main>
+		if alert.Type != "" {
+			<div
+				x-data
+				x-init={ `$nextTick(() => {
+       window.dispatchEvent(new CustomEvent('notify', { 
+         detail: { 
+           type: '`+alert.Type+`', 
+           message: '`+alert.Message+`'
+         }
+       }));
+			const url = new URL(window.location);
+			url.searchParams.delete('message');
+			url.searchParams.delete('type');
+			window.history.replaceState(null, '', url);
+
+			// Remove this element from the DOM
+			 $el.remove();
+     })` }
+			></div>
+		}
+		@components.Footer()
+	}
+}

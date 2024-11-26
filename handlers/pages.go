@@ -298,51 +298,75 @@ func (ph *pageHandler) GetPathObject(ctx *fiber.Ctx) error {
 }
 
 func (ph *pageHandler) PublikLink(ctx *fiber.Ctx) error {
-	claim, err := ph.jwtConfig.DecodeToken(ctx.Cookies("access_token"))
-	if err != nil {
-		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"status":  "error",
-			"message": "failed to decode token",
-			"error":   err.Error(),
-		})
-	}
+	var user models.User
+	isLogin := false
 
-	// Retrieve user by ID from the token claims
-	user, err := ph.authService.ReadUserWithId(claim.ID)
-	if err != nil {
-		ph.logger.Info("Failed to retrieve user information", "error", err)
-		return ctx.Redirect("/login?message=Unable to retrieve user data. Please try again.&type=warning")
-	}
-
-	if ph.s3Service.IsS3ConfigEmpty() {
-		ph.logger.Warn("S3 configuration is empty")
-		return ctx.Redirect("/settings/key?message=S3 configuration is missing. Please configure your S3 settings.&type=warning")
+	if claim, err := ph.jwtConfig.DecodeToken(ctx.Cookies("access_token")); err == nil {
+		user, err = ph.authService.ReadUserWithId(claim.ID)
+		if err != nil {
+			ph.logger.Info("Failed to retrieve user information", "error", err)
+		}
+		isLogin = true
 	}
 
 	link := ctx.Params("link")
 	ph.logger.Info("Listing public object with link", slog.String("link", link))
+
 	res, err := ph.pubLink.GetRootByLink(link)
 	if err != nil {
-		ph.logger.Error("Failed to get link or link not available", slog.String("bucket", link), slog.String("error", err.Error()))
+		ph.logger.Error("Failed to get link or link not available",
+			slog.String("bucket", link),
+			slog.String("error", err.Error()))
 		return Render(ctx, error_handling.NotFound())
 	}
 
-	files, _, err := ph.s3Service.ListPageFiles(ctx.Context(), res.RealRootBucket+"/", res.RealRootPath+"/")
-	if err != nil {
-		ph.logger.Error("Failed to list page files by link", slog.String("bucket", res.RealRootBucket), slog.String("decodedPath", res.RealRootPath), slog.String("error", err.Error()))
+	if res.Privacy == "PRIVATE" {
+		key := ctx.Query("access-key")
+		if key == "" {
+			return Render(ctx, error_handling.InvalidKeyAccesing(models.Alert{Type: "warning", Message: "access key empty"}))
+		}
+		if res.AccessKey != key {
+			return Render(ctx, error_handling.InvalidKeyAccesing(models.Alert{Type: "error", Message: "access key not valid"}))
+		}
 	}
 
-	ph.logger.Info("Accessing path objects with publik link", slog.String("bucket", res.RealRootBucket), slog.String("path", res.RealRootPath), slog.String("link", link))
-	p := []string{res.RealRootBucket}
-	p = append(p, strings.Split(res.RealRootPath, "/")...)
+	files, _, err := ph.s3Service.ListPageFiles(
+		ctx.Context(),
+		res.RealRootBucket+"/",
+		res.RealRootPath+"/",
+	)
+	if err != nil {
+		ph.logger.Error("Failed to list page files by link",
+			slog.String("bucket", res.RealRootBucket),
+			slog.String("decodedPath", res.RealRootPath),
+			slog.String("error", err.Error()))
+	}
+
+	ph.logger.Info("Accessing path objects with publik link",
+		slog.String("bucket", res.RealRootBucket),
+		slog.String("path", res.RealRootPath),
+		slog.String("link", link))
+
+	pathComponents := append([]string{res.RealRootBucket}, strings.Split(res.RealRootPath, "/")...)
 
 	message := ctx.Query("message")
 	typ := ctx.Query("type")
+
 	if message != "" && typ != "" {
-		return Render(ctx, public.Index(models.Alert{Type: typ, Message: message}, user, public.ListObject(p, files, link)))
+		return Render(ctx, public.Index(
+			models.Alert{Type: typ, Message: message},
+			user,
+			public.ListObject(pathComponents, files, link),
+			isLogin,
+		))
 	}
 
-	return Render(ctx, public.Index(models.Alert{}, user, public.ListObject(p, files, link)))
+	return Render(ctx, public.Index(
+		models.Alert{},
+		user,
+		public.ListObject(pathComponents, files, link),
+		isLogin,
+	))
 }
 
 func (ph *pageHandler) PublikLinkList(ctx *fiber.Ctx) error {
