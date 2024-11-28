@@ -91,7 +91,7 @@ func (ss *s3Service) UploadFile(ctx context.Context, bucket, basePath string, fi
 	ss.logger.Debug("Prepared file path", "filename", filename, "fullPath", fullPath)
 
 	// Get the content type using the provided function
-	contentType, err := getFileContentType(file.Filename)
+	contentType, err := getFileContentType(file)
 	if err != nil {
 		ss.logger.Error("Failed to determine content type", "error", err)
 		return fmt.Errorf("failed to determine content type: %w", err)

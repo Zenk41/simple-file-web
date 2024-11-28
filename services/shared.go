@@ -2,11 +2,11 @@ package services
 
 import (
 	"context"
+	"mime/multipart"
 
 	"log/slog"
 	"mime"
 	"net/http"
-	"os"
 	"path/filepath"
 
 	"github.com/Zenk41/simple-file-web/models"
@@ -49,26 +49,26 @@ func LoadS3Config(s3Data models.ConfigS3) (aws.Config, error) {
 	return cfg, nil
 }
 
-func getFileContentType(filename string) (string, error) {
+func getFileContentType(file *multipart.FileHeader) (string, error) {
 	// First, try to detect by extension
-	ext := filepath.Ext(filename)
+	ext := filepath.Ext(file.Filename)
 	mimeType := mime.TypeByExtension(ext)
 	if mimeType != "" {
-		return mimeType, nil
+			return mimeType, nil
 	}
 
-	// If that fails, try to detect by content
-	file, err := os.Open(filename)
+	// Open the file
+	src, err := file.Open()
 	if err != nil {
-		return "", err
+			return "", err
 	}
-	defer file.Close()
+	defer src.Close()
 
 	// Only the first 512 bytes are used to sniff the content type.
 	buffer := make([]byte, 512)
-	_, err = file.Read(buffer)
+	_, err = src.Read(buffer)
 	if err != nil {
-		return "", err
+			return "", err
 	}
 
 	// Use the net/http package's handy DetectContentType function
