@@ -96,8 +96,11 @@ templ ListObject(dirs []string, files []string, link string) {
 
         // Open a pre-signed URL for the selected file
         openPresignedUrl() {
-            if (this.selectedFile && this.selectedBucket) {
-                const url = `/api/presigned-url?bucket=${encodeURIComponent(this.selectedBucket)}&file=${encodeURIComponent(this.selectedFile)}`;
+            if (this.selectedFile) {
+                const urls = window.location.pathname;
+                const parts = urls.split('/');
+                const publiclink = parts[2];
+                const url = `/api/p/presigned-url?public-link=${encodeURIComponent(publiclink)}&file=${encodeURIComponent(this.selectedFile)}`;
 								console.log(url)
                 // Make an AJAX request to fetch the pre-signed URL
                 fetch(url)

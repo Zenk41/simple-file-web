@@ -6,6 +6,7 @@ import (
 
 	"github.com/Zenk41/simple-file-web/models"
 	"github.com/Zenk41/simple-file-web/services"
+	"github.com/Zenk41/simple-file-web/views/error_handling"
 	"github.com/go-playground/validator/v10"
 	"github.com/gofiber/fiber/v2"
 )
@@ -16,19 +17,22 @@ type PublicLinkHandler interface {
 	UpdatePublicLink(ctx *fiber.Ctx) error
 	ValidateLinkCreate(ctx *fiber.Ctx) error
 	ValidateLinkUpdate(ctx *fiber.Ctx) error
+	OpenFile(ctx *fiber.Ctx) error
 }
 
 type publicLinkHandler struct {
 	publicLinkService services.PublicLinkManager
 	authService       services.AuthService
+	s3Service         services.S3Service
 	validator         *validator.Validate
 	logger            *slog.Logger
 }
 
-func NewPublicLinkHandler(pLinkService services.PublicLinkManager, authService services.AuthService, logger *slog.Logger, validator *validator.Validate) PublicLinkHandler {
+func NewPublicLinkHandler(pLinkService services.PublicLinkManager, authService services.AuthService, s3Service services.S3Service, logger *slog.Logger, validator *validator.Validate) PublicLinkHandler {
 	return &publicLinkHandler{
 		publicLinkService: pLinkService,
 		authService:       authService,
+		s3Service:         s3Service,
 		logger:            logger,
 		validator:         validator,
 	}
@@ -224,5 +228,44 @@ func (plh *publicLinkHandler) ValidateLinkCreate(ctx *fiber.Ctx) error {
 	return ctx.Status(fiber.StatusOK).JSON(fiber.Map{
 		"status":  "success",
 		"message": "link it's available",
+	})
+}
+
+func (plh *publicLinkHandler) OpenFile(ctx *fiber.Ctx) error {
+	link := ctx.Query("public-link")
+	file := ctx.Query("file")
+
+	plh.logger.Info("Listing public object with link", slog.String("link", link))
+
+	res, err := plh.publicLinkService.GetRootByLink(link)
+
+	if res.Privacy == "PRIVATE" {
+		key := ctx.Query("access-key")
+		if key == "" {
+			return Render(ctx, error_handling.InvalidKeyAccesing(models.Alert{Type: "warning", Message: "access key empty"}))
+		}
+		if res.AccessKey != key {
+			return Render(ctx, error_handling.InvalidKeyAccesing(models.Alert{Type: "error", Message: "access key not valid"}))
+		}
+	}
+	if err != nil {
+		plh.logger.Error("Failed to get link or link not available",
+			slog.String("bucket", link),
+			slog.String("error", err.Error()))
+		return Render(ctx, error_handling.NotFound())
+	}
+
+
+
+	plh.logger.Info("Opening object", slog.String("bucket", res.RealRootBucket), slog.String("file", file))
+
+	presignedUrl, err := plh.s3Service.GetDownloadObject(ctx.Context(), res.RealRootBucket, file)
+	if err != nil {
+		plh.logger.Error("Failed to get presigned URL", slog.String("bucket", res.RealRootBucket), slog.String("file", file), slog.String("error", err.Error()))
+		return ctx.Status(fiber.StatusInternalServerError).SendString("Failed to get presigned URL")
+	}
+
+	return ctx.JSON(fiber.Map{
+		"url": presignedUrl,
 	})
 }

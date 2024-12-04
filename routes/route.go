@@ -53,6 +53,8 @@ func (hl *HandlerList) RoutesRegister(app *fiber.App) {
 	api.Post("/upload", hl.ApiHandler.UploadObject)
 	api.Get("/downloads", hl.ApiHandler.DownloadObjectsAsZip)
 
+	api.Get("/p/presigned-url", hl.PublicLinkHandler.OpenFile)
+
 	pLink := api.Group("/p")
 	pLink.Put("/:id", hl.PublicLinkHandler.UpdatePublicLink)
 	pLink.Post("/", hl.PublicLinkHandler.CreatePublicLink)
