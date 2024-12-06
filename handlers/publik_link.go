@@ -1,7 +1,10 @@
 package handlers
 
 import (
+	"io"
 	"log/slog"
+	"net/http"
+	"net/url"
 	"strings"
 
 	"github.com/Zenk41/simple-file-web/models"
@@ -17,7 +20,9 @@ type PublicLinkHandler interface {
 	UpdatePublicLink(ctx *fiber.Ctx) error
 	ValidateLinkCreate(ctx *fiber.Ctx) error
 	ValidateLinkUpdate(ctx *fiber.Ctx) error
+
 	OpenFile(ctx *fiber.Ctx) error
+	DownloadFile(ctx *fiber.Ctx) error
 }
 
 type publicLinkHandler struct {
@@ -254,8 +259,25 @@ func (plh *publicLinkHandler) OpenFile(ctx *fiber.Ctx) error {
 			slog.String("error", err.Error()))
 		return Render(ctx, error_handling.NotFound())
 	}
+	plh.logger.Info("downloading object", slog.String("bucket", res.RealRootBucket), slog.String("file", file))
 
-
+	// checking if file exists
+	fileExist := false
+	files, _, err := plh.s3Service.ListPageFiles(ctx.Context(), res.RealRootBucket, res.RealRootPath+"/")
+	if err != nil {
+		plh.logger.Error("Failed to get file", slog.String("bucket", res.RealRootBucket), slog.String("file", file), slog.String("error", err.Error()))
+		return ctx.Status(fiber.StatusInternalServerError).SendString("Failed to get file")
+	}
+	// check every files
+	for _, v := range files {
+		if v == file {
+			fileExist = true
+		}
+	}
+	if !fileExist {
+		plh.logger.Error("file not found", slog.String("bucket", res.RealRootBucket), slog.String("file", file))
+		return ctx.Status(fiber.StatusInternalServerError).SendString("file not found")
+	}
 
 	plh.logger.Info("Opening object", slog.String("bucket", res.RealRootBucket), slog.String("file", file))
 
@@ -268,4 +290,88 @@ func (plh *publicLinkHandler) OpenFile(ctx *fiber.Ctx) error {
 	return ctx.JSON(fiber.Map{
 		"url": presignedUrl,
 	})
+}
+
+func (plh *publicLinkHandler) DownloadFile(ctx *fiber.Ctx) error {
+	link := ctx.Query("public-link")
+	file := ctx.Query("file")
+
+	plh.logger.Info("Listing public object with link", slog.String("link", link))
+
+	res, err := plh.publicLinkService.GetRootByLink(link)
+
+	if res.Privacy == "PRIVATE" {
+		key := ctx.Query("access-key")
+		if key == "" {
+			return Render(ctx, error_handling.InvalidKeyAccesing(models.Alert{Type: "warning", Message: "access key empty"}))
+		}
+		if res.AccessKey != key {
+			return Render(ctx, error_handling.InvalidKeyAccesing(models.Alert{Type: "error", Message: "access key not valid"}))
+		}
+	}
+	if err != nil {
+		plh.logger.Error("Failed to get link or link not available",
+			slog.String("bucket", link),
+			slog.String("error", err.Error()))
+		return Render(ctx, error_handling.NotFound())
+	}
+	plh.logger.Info("downloading object", slog.String("bucket", res.RealRootBucket), slog.String("file", file))
+
+	// checking if file exists
+	fileExist := false
+	files, _, err := plh.s3Service.ListPageFiles(ctx.Context(), res.RealRootBucket, res.RealRootPath+"/")
+	if err != nil {
+		plh.logger.Error("Failed to get file", slog.String("bucket", res.RealRootBucket), slog.String("file", file), slog.String("error", err.Error()))
+		return ctx.Status(fiber.StatusInternalServerError).SendString("Failed to get file")
+	}
+	// check every files
+	for _, v := range files {
+		if v == file {
+			fileExist = true
+		}
+	}
+	if !fileExist {
+		plh.logger.Error("file not found", slog.String("bucket", res.RealRootBucket), slog.String("file", file))
+		return ctx.Status(fiber.StatusInternalServerError).SendString("file not found")
+	}
+
+	decodedFile, err := url.QueryUnescape(file)
+	if err != nil {
+		plh.logger.Error("Invalid file parameter", slog.String("file", file), slog.String("error", err.Error()))
+		return ctx.Status(fiber.StatusBadRequest).SendString("Invalid file parameter")
+	}
+
+	plh.logger.Info("Downloading object", slog.String("bucket", res.RealRootBucket), slog.String("file", decodedFile))
+
+	presignedUrl, err := plh.s3Service.GetDownloadObject(ctx.Context(), res.RealRootBucket, decodedFile)
+	if err != nil {
+		plh.logger.Error("Failed to generate presigned URL", slog.String("bucket", res.RealRootBucket), slog.String("file", decodedFile), slog.String("error", err.Error()))
+		return ctx.Status(fiber.StatusInternalServerError).SendString("Failed to generate presigned URL")
+	}
+
+	plh.logger.Info("Presigned URL generated", slog.String("url", presignedUrl))
+
+	resp, err := http.Get(presignedUrl)
+	if err != nil {
+		plh.logger.Error("Failed to download file", slog.String("url", presignedUrl), slog.String("error", err.Error()))
+		return ctx.Status(fiber.StatusInternalServerError).SendString("Failed to download file")
+	}
+	defer resp.Body.Close()
+
+	// Set Content-Type from the response header
+	contentType := resp.Header.Get("Content-Type")
+	ctx.Set("Content-Type", contentType)
+
+	if isViewableFile(contentType) {
+		ctx.Set("Content-Disposition", "inline; filename="+decodedFile) // Open in new tab
+	} else {
+		ctx.Set("Content-Disposition", "attachment; filename="+decodedFile) // Force download
+	}
+
+	_, err = io.Copy(ctx.Response().BodyWriter(), resp.Body)
+	if err != nil {
+		plh.logger.Error("Failed to serve file content", slog.String("error", err.Error()))
+		return ctx.Status(fiber.StatusInternalServerError).SendString("Failed to serve file content")
+	}
+	return nil
 }
