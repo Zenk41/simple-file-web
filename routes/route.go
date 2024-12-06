@@ -37,6 +37,8 @@ func (hl *HandlerList) RoutesRegister(app *fiber.App) {
 	// pages publik
 	publik := app.Group("/p")
 	publik.Get("/:link", hl.PageHandler.PublikLink)
+	app.Get("/api/p/presigned-url", hl.PublicLinkHandler.OpenFile)
+	app.Get("/api/p/download", hl.PublicLinkHandler.DownloadFile)
 
 	// home pages
 	app.Get("/", middlewares.IsAuthenticated(hl.JwtConfig, true, true), hl.PageHandler.Home)
@@ -52,8 +54,6 @@ func (hl *HandlerList) RoutesRegister(app *fiber.App) {
 	api.Post("/object-rename", hl.ApiHandler.RenameObject)
 	api.Post("/upload", hl.ApiHandler.UploadObject)
 	api.Get("/downloads", hl.ApiHandler.DownloadObjectsAsZip)
-
-	api.Get("/p/presigned-url", hl.PublicLinkHandler.OpenFile)
 
 	pLink := api.Group("/p")
 	pLink.Put("/:id", hl.PublicLinkHandler.UpdatePublicLink)
