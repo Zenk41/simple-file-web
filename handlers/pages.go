@@ -206,9 +206,9 @@ func (ph *pageHandler) Home(ctx *fiber.Ctx) error {
 	message := ctx.Query("message")
 	typ := ctx.Query("type")
 	if message != "" && typ != "" {
-		return Render(ctx, home.Index(models.Alert{Type: typ, Message: message}, user, components.BucketList(str)))
+		return Render(ctx, home.Index(models.Alert{Type: typ, Message: message}, user, components.BucketList(str), true))
 	}
-	return Render(ctx, home.Index(models.Alert{}, user, components.BucketList(str)))
+	return Render(ctx, home.Index(models.Alert{}, user, components.BucketList(str), true))
 }
 
 func (ph *pageHandler) BucketRoot(ctx *fiber.Ctx) error {
@@ -240,16 +240,17 @@ func (ph *pageHandler) BucketRoot(ctx *fiber.Ctx) error {
 	strFile, strFolder, err := ph.s3Service.ListPageFiles(ctx.Context(), bucket, "")
 	if err != nil {
 		ph.logger.Error("Failed to list page files", slog.String("bucket", bucket), slog.String("error", err.Error()))
-		return Render(ctx, home.Index(models.Alert{}, user, nil))
+		return Render(ctx, home.Index(models.Alert{}, user, nil, true))
 	}
 
 	message := ctx.Query("message")
 	typ := ctx.Query("type")
 	if message != "" && typ != "" {
-		return Render(ctx, home.Index(models.Alert{Type: typ, Message: message}, user, components.ListObject([]string{bucket}, strFile, strFolder)))
+		return Render(ctx, home.Index(models.Alert{
+			Type: typ, Message: message}, user, components.ListObject([]string{bucket}, strFile, strFolder), true))
 	}
 
-	return Render(ctx, home.Index(models.Alert{}, user, components.ListObject([]string{bucket}, strFile, strFolder)))
+	return Render(ctx, home.Index(models.Alert{}, user, components.ListObject([]string{bucket}, strFile, strFolder), true))
 }
 
 func (ph *pageHandler) GetPathObject(ctx *fiber.Ctx) error {
@@ -291,10 +292,10 @@ func (ph *pageHandler) GetPathObject(ctx *fiber.Ctx) error {
 	message := ctx.Query("message")
 	typ := ctx.Query("type")
 	if message != "" && typ != "" {
-		return Render(ctx, home.Index(models.Alert{Type: typ, Message: message}, user, components.ListObject(p, files, folders)))
+		return Render(ctx, home.Index(models.Alert{Type: typ, Message: message}, user, components.ListObject(p, files, folders), true))
 	}
 
-	return Render(ctx, home.Index(models.Alert{}, user, components.ListObject(p, files, folders)))
+	return Render(ctx, home.Index(models.Alert{}, user, components.ListObject(p, files, folders), true))
 }
 
 func (ph *pageHandler) PublikLink(ctx *fiber.Ctx) error {

@@ -68,7 +68,7 @@ func main() {
 	authHandler := handlers.NewAuthHandler(logger, authService, authValidation, jwtConfig, getFirstURL(originURL))
 	pageHandler := handlers.NewPageHandler(s3Service, authService, logger, publikLinkService, jwtConfig)
 	apiHandler := handlers.NewApiHandler(s3Service, logger, s3Validation)
-	publicLinkHandler := handlers.NewPublicLinkHandler(publikLinkService, authService, logger, publicLinkValidation)
+	publicLinkHandler := handlers.NewPublicLinkHandler(publikLinkService, authService, s3Service, logger, publicLinkValidation)
 
 	app.Use(middlewares.StructuredLogger())
 

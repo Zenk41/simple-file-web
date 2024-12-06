@@ -60,7 +60,7 @@ templ ListObject(dirs []string, files []string, link string) {
 				>
 					<ul>
 						<!-- Hide "Open" and "Download" if a folder is selected -->
-						<li x-show="selectedType === 'file'" @click="showMenu = false; openInNewTab()" class="px-4 py-2 cursor-pointer hover:bg-gray-200">Download</li>
+						<li x-show="selectedType === 'file'" @click="showMenu = false; downloadFile()" class="px-4 py-2 cursor-pointer hover:bg-gray-200">Download</li>
 						<li x-show="selectedType === 'file'" @click="showMenu = false; openPresignedUrl()" class="px-4 py-2 cursor-pointer hover:bg-gray-200">Open</li>
 					</ul>
 				</div>
@@ -80,101 +80,129 @@ templ ListObject(dirs []string, files []string, link string) {
 								showModal:false,
 
 
-				selectFile(file, bucket, type = 'file') {
+		selectFile(file, bucket, type = 'file') {
             this.selectedFile = file;
             this.selectedBucket = bucket;
             this.selectedType = type;
         },
 
-        // Open the selected file in a new tab
-        openInNewTab() {
-            if (this.selectedFile && this.selectedBucket) {
-                const url = `/api/download?bucket=${encodeURIComponent(this.selectedBucket)}&file=${encodeURIComponent(this.selectedFile)}`;
-                window.open(url, '_blank');
+        setGlobalLoading(value) {
+            const alpineRoot = document.querySelector('[x-data]');
+            if (alpineRoot && alpineRoot.__x) {
+                alpineRoot.__x.$data.loading = value;
             }
         },
 
         // Open a pre-signed URL for the selected file
-        openPresignedUrl() {
-            if (this.selectedFile && this.selectedBucket) {
-                const url = `/api/presigned-url?bucket=${encodeURIComponent(this.selectedBucket)}&file=${encodeURIComponent(this.selectedFile)}`;
-								console.log(url)
-                // Make an AJAX request to fetch the pre-signed URL
-                fetch(url)
-                    .then((response) => response.json())
-                    .then((data) => {
-                        if (data.url) {
-                            window.open(data.url, '_blank');
-                        } else {
-                            alert('Failed to get pre-signed URL');
-                        }
-                    })
-                    .catch((error) => {
-                        console.error('Error fetching pre-signed URL:', error);
-                        alert('Failed to get pre-signed URL');
-                    });
+        async downloadFile() {
+            if (this.selectedFile) {
+                const urls = window.location.pathname;
+                const parts = urls.split('/');
+                const publiclink = parts[2];
+                const urlParams = new URLSearchParams(window.location.search);
+                const accessKey = urlParams.get('access-key');
+                const url = `/api/p/download?public-link=${encodeURIComponent(publiclink)}&file=${encodeURIComponent(this.selectedFile)}&access-key=${encodeURIComponent(accessKey)}`;
+                
+                
+                try {
+                    this.loading = true;
+                    const response = await fetch(url);
+                        
+                    if (!response.ok) {
+                            throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                        
+                    const blob = await response.blob();
+                    const filename = this.selectedFile.split('/').pop() || 'download';
+                    
+                    const link = document.createElement('a');
+                    link.href = URL.createObjectURL(blob);
+                    link.download = filename;
+                    
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+
+                    URL.revokeObjectURL(link.href);
+                } catch (error) {
+                    console.error('Download failed:', error);
+                    alert('Failed to download the file. Please try again.');
+                } finally {
+                    this.loading = false;
+                }
             }
         },
 
-// Download a zip folder based on bucket and file path
-async downloadZipFolder(bucket, filePath) {
-    // Construct the URL for downloading the zip folder
-    const url = `/api/downloads?bucket=${encodeURIComponent(bucket)}&path=${encodeURIComponent(filePath)}`;
+        openPresignedUrl() {
+            if (this.selectedFile) {
+                const urls = window.location.pathname;
+                const parts = urls.split('/');
+                const publiclink = parts[2];
+                const urlParams = new URLSearchParams(window.location.search);
+                const accessKey = urlParams.get('access-key');
+                const url = `/api/p/presigned-url?public-link=${encodeURIComponent(publiclink)}&file=${encodeURIComponent(this.selectedFile)}&access-key=${encodeURIComponent(accessKey)}`;
+                this.setGlobalLoading(true);
+                fetch(url)
+                .then((response) => response.json())
+                .then((data) => {
+                    if (data.url) {
+                        window.open(data.url, '_blank');
+                    } else {
+                        alert('Failed to get pre-signed URL');
+                    }
+                })
+                .catch((error) => {
+                    console.error('Error fetching pre-signed URL:', error);
+                    alert('Failed to get pre-signed URL');
+                })
+                .finally(() => {
+                    this.setGlobalLoading(false);
+                });
+            }
+        },
 
-    try {
-			this.loading = true;
-        // Fetch the ZIP file
-        const response = await fetch(url);
+        // Download a zip folder based on bucket and file path
+        async downloadZipFolder(bucket, filePath) {
+            const urls = window.location.pathname;
+            const parts = urls.split('/');
+            const publiclink = parts[2];
+            const urlParams = new URLSearchParams(window.location.search);
+            const accessKey = urlParams.get('access-key');
+            const url = `/api/p/downloads?public-link=${encodeURIComponent(publiclink)}&access-key=${encodeURIComponent(accessKey)}`;
+            
+            try {
+                this.loading = true; // Set loading to true when starting the download
+                const response = await fetch(url);
 
-        // Check if the response is OK
-        if (!response.ok) {
-            throw new Error(`Error: ${response.statusText}`);
-        }
+                if (!response.ok) {
+                        throw new Error(`Error: ${response.statusText}`);
+                }
 
-        // Convert response to a blob
-        const blob = await response.blob();
+                const blob = await response.blob();
 
-        // Check the size of the blob
-        if (!blob || blob.size === 0) {
-            throw new Error("Downloaded file is empty.");
-        }
+                if (!blob || blob.size === 0) {
+                        throw new Error("Downloaded file is empty.");
+                }
 
-        // Create a URL for the blob and trigger the download
-        const link = document.createElement('a');
-        link.href = URL.createObjectURL(blob);
-        link.download = `download${filePath}.zip`; // Set a dynamic filename
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(blob);
+                link.download = `download${filePath}.zip`;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
 
-        // Clean up the URL object
-        URL.revokeObjectURL(link.href);
+                URL.revokeObjectURL(link.href);
 
-        // Provide success feedback to the user
-        alert('Download successful!');
-    } catch (error) {
-        console.error('Download failed:', error);
-        alert('Failed to download the ZIP file. Please try again.'); // Notify user of the error
-    } finally {
-        // Hide loading state
-				this.loading = false;
-    }
-}
-    };
-}
-document.body.addEventListener('htmx:afterRequest', function (event) {
-        // Check if the request was successful
-        if (event.detail.xhr.status === 200) {
-            const response = JSON.parse(event.detail.xhr.responseText);
-            if (response.redirect) {
-                const url = new URL(response.redirect, window.location.origin);
-                url.searchParams.append('message', response.message);
-                url.searchParams.append('type', 'success');
-                window.location.href = url.toString();
+                alert('Download successful!');
+            } catch (error) {
+                    console.error('Download failed:', error);
+                    alert('Failed to download the ZIP file. Please try again.');
+            } finally {
+                    this.loading = false; // Set loading back to false when the download is complete
             }
         }
-				
-    });
+    };
+}
 </script>
 	</main>
 }
