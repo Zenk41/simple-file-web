@@ -6,9 +6,9 @@ import (
 	"github.com/Zenk41/simple-file-web/views/layouts"
 )
 
-templ Index(alert models.Alert, user models.User, component templ.Component) {
+templ Index(alert models.Alert, user models.User, component templ.Component, isLogin bool) {
 	@layouts.Base() {
-		@components.Header(user, true)
+		@components.Header(user, isLogin)
 		if component != nil {
 			@component
 		}
