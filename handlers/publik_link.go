@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
@@ -23,6 +24,7 @@ type PublicLinkHandler interface {
 
 	OpenFile(ctx *fiber.Ctx) error
 	DownloadFile(ctx *fiber.Ctx) error
+	DownloadObjectsAsZip(ctx *fiber.Ctx) error
 }
 
 type publicLinkHandler struct {
@@ -373,5 +375,54 @@ func (plh *publicLinkHandler) DownloadFile(ctx *fiber.Ctx) error {
 		plh.logger.Error("Failed to serve file content", slog.String("error", err.Error()))
 		return ctx.Status(fiber.StatusInternalServerError).SendString("Failed to serve file content")
 	}
+	return nil
+}
+
+func (plh *publicLinkHandler) DownloadObjectsAsZip(ctx *fiber.Ctx) error {
+
+	link := ctx.Query("public-link")
+
+	plh.logger.Info("Listing public object with link", slog.String("link", link))
+
+	res, err := plh.publicLinkService.GetRootByLink(link)
+
+	if res.Privacy == "PRIVATE" {
+		key := ctx.Query("access-key")
+		if key == "" {
+			return Render(ctx, error_handling.InvalidKeyAccesing(models.Alert{Type: "warning", Message: "access key empty"}))
+		}
+		if res.AccessKey != key {
+			return Render(ctx, error_handling.InvalidKeyAccesing(models.Alert{Type: "error", Message: "access key not valid"}))
+		}
+	}
+	if err != nil {
+		plh.logger.Error("Failed to get link or link not available",
+			slog.String("bucket", link),
+			slog.String("error", err.Error()))
+		return Render(ctx, error_handling.NotFound())
+	}
+
+	plh.logger.Info("Downloading objects as ZIP", slog.String("bucket", res.RealRootBucket), slog.String("path", res.RealRootPath+"/"))
+
+	zipReader, filename, err := plh.s3Service.DownloadFilesAsZip(ctx.Context(), res.RealRootBucket, res.RealRootPath+"/")
+	if err != nil {
+		plh.logger.Error("Failed to create ZIP file", slog.String("bucket", res.RealRootBucket), slog.String("path", res.RealRootPath+"/"), slog.String("error", err.Error()))
+		return ctx.Status(fiber.StatusInternalServerError).SendString("Failed to create ZIP file")
+	}
+
+	ctx.Set("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", filename))
+	ctx.Set("Content-Type", "application/zip")
+
+	if _, err = io.Copy(ctx.Response().BodyWriter(), zipReader); err != nil {
+		plh.logger.Error("Failed to stream ZIP content", slog.String("bucket", res.RealRootBucket), slog.String("error", err.Error()))
+		return ctx.Status(fiber.StatusInternalServerError).SendString("Failed to stream ZIP content")
+	}
+
+	if closer, ok := zipReader.(io.ReadCloser); ok {
+		if err := closer.Close(); err != nil {
+			plh.logger.Error("Error closing zipReader", slog.String("error", err.Error()))
+		}
+	}
+
 	return nil
 }

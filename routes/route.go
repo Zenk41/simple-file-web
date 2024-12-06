@@ -39,6 +39,7 @@ func (hl *HandlerList) RoutesRegister(app *fiber.App) {
 	publik.Get("/:link", hl.PageHandler.PublikLink)
 	app.Get("/api/p/presigned-url", hl.PublicLinkHandler.OpenFile)
 	app.Get("/api/p/download", hl.PublicLinkHandler.DownloadFile)
+	app.Get("/api/p/downloads", hl.PublicLinkHandler.DownloadObjectsAsZip)
 
 	// home pages
 	app.Get("/", middlewares.IsAuthenticated(hl.JwtConfig, true, true), hl.PageHandler.Home)
