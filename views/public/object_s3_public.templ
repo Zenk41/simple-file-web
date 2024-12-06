@@ -163,46 +163,42 @@ templ ListObject(dirs []string, files []string, link string) {
 
         // Download a zip folder based on bucket and file path
         async downloadZipFolder(bucket, filePath) {
-            // Construct the URL for downloading the zip folder
-            const url = `/api/downloads?bucket=${encodeURIComponent(bucket)}&path=${encodeURIComponent(filePath)}`;
-
+            const urls = window.location.pathname;
+            const parts = urls.split('/');
+            const publiclink = parts[2];
+            const urlParams = new URLSearchParams(window.location.search);
+            const accessKey = urlParams.get('access-key');
+            const url = `/api/p/downloads?public-link=${encodeURIComponent(publiclink)}&access-key=${encodeURIComponent(accessKey)}`;
+            
             try {
-                this.loading = true;
-            // Fetch the ZIP file
-            const response = await fetch(url);
+                this.loading = true; // Set loading to true when starting the download
+                const response = await fetch(url);
 
-            // Check if the response is OK
-            if (!response.ok) {
-                throw new Error(`Error: ${response.statusText}`);
-            }
+                if (!response.ok) {
+                        throw new Error(`Error: ${response.statusText}`);
+                }
 
-            // Convert response to a blob
-            const blob = await response.blob();
+                const blob = await response.blob();
 
-            // Check the size of the blob
-            if (!blob || blob.size === 0) {
-                throw new Error("Downloaded file is empty.");
-            }
+                if (!blob || blob.size === 0) {
+                        throw new Error("Downloaded file is empty.");
+                }
 
-            // Create a URL for the blob and trigger the download
-            const link = document.createElement('a');
-            link.href = URL.createObjectURL(blob);
-            link.download = `download${filePath}.zip`; // Set a dynamic filename
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(blob);
+                link.download = `download${filePath}.zip`;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
 
-            // Clean up the URL object
-            URL.revokeObjectURL(link.href);
+                URL.revokeObjectURL(link.href);
 
-            // Provide success feedback to the user
-            alert('Download successful!');
+                alert('Download successful!');
             } catch (error) {
-                console.error('Download failed:', error);
-                alert('Failed to download the ZIP file. Please try again.'); // Notify user of the error
+                    console.error('Download failed:', error);
+                    alert('Failed to download the ZIP file. Please try again.');
             } finally {
-                // Hide loading state
-                this.loading = false;
+                    this.loading = false; // Set loading back to false when the download is complete
             }
         }
     };
