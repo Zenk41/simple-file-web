@@ -46,6 +46,8 @@ $env:APP_ENV="development"
 $env:PORT="3000"
 $env:Alloworigin="*"  # Allowed origins, set to "*" for any origin
 $env:DOWNLOAD_URL_EXPIRATION="3600"  # URL expiration time in seconds
+$env:GOOGLE_CLIENT_ID=
+$env:GOOGLE_CLIENT_SECRET=
 ```
 
 **For Bash (Linux/Mac):**
@@ -55,6 +57,8 @@ export APP_ENV="development"
 export PORT=3000
 export Alloworigin=*
 export DOWNLOAD_URL_EXPIRATION=3600
+export GOOGLE_CLIENT_ID=
+export GOOGLE_CLIENT_SECRET=
 ```
 
 ### Running Locally
