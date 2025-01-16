@@ -18,6 +18,27 @@ type RegisterPayload struct {
 	Password string `json:"password" validate:"required,min=8"`
 }
 
+type RegisterOauthPayload struct {
+	OauthProvider    string `json:"oauth_provider" validate:"required"`
+	OauthAccessToken string `json:"oauth_access_token" validate:"required"`
+	FirstName        string `json:"first_name" validate:"required"`
+	LastName         string `json:"last_name" validate:"required"`
+	Email            string `json:"email" validate:"required"`
+}
+
+type LoginOauthPayload struct {
+	OauthProvider    string `json:"oauth_provider" validate:"required"`
+	OauthAccessToken string `json:"oauth_access_token" validate:"required"`
+}
+
+type GoogleUserInfo struct {
+	ID            string `json:"id"`
+	Email         string `json:"email"`
+	VerifiedEmail bool   `json:"verified_email"`
+	Picture       string `json:"picture"`
+	Name          string `json:"name"`
+}
+
 func (lp *LoginPayload) CheckPassword(encryptedPassword string) error {
 	err := bcrypt.CompareHashAndPassword([]byte(lp.Password), []byte(encryptedPassword))
 	if err != nil {
@@ -37,13 +58,23 @@ type User struct {
 
 	OtpSecret  string `json:"otp_secret"`
 	OtpAuthUrl string `json:"otp_auth_url"`
-	
-	CreatedAt  time.Time
-	UpdatedAt  time.Time
+
+	OauthProvider       string `json:"oauth_provider"` // Optional only if OAuth is chosen
+	OauthProviderUserID string `json:"oath_provider_user_id"`
+
+	CreatedAt time.Time
+	UpdatedAt time.Time
+
+	IsAdmin bool
+}
+
+type StateOauth struct {
+	State     string
+	CreatedAt time.Time
 }
 
 type OTPInput struct {
-	Token  string `json:"token"`
+	Token string `json:"token"`
 }
 
 type Auth struct {
