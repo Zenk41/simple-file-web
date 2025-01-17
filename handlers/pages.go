@@ -20,8 +20,8 @@ import (
 	"github.com/Zenk41/simple-file-web/views/public"
 	"github.com/Zenk41/simple-file-web/views/public_link"
 	views_settings "github.com/Zenk41/simple-file-web/views/settings"
+	"github.com/a-h/templ"
 	"github.com/gofiber/fiber/v2"
-	"github.com/google/uuid"
 )
 
 type PageHandler interface {
@@ -64,25 +64,25 @@ func (ph *pageHandler) Login(ctx *fiber.Ctx) error {
 	message := ctx.Query("message")
 	typ := ctx.Query("type")
 	if message != "" && typ != "" {
-		return Render(ctx, views_auth.Login(models.Alert{Type: typ, Message: message}))
+		return Render(ctx, views_auth.LoginDisablePassword(models.Alert{Type: typ, Message: message}))
 	}
-	return Render(ctx, views_auth.Login(models.Alert{}))
+	return Render(ctx, views_auth.LoginDisablePassword(models.Alert{}))
 }
 
 func (ph *pageHandler) Register(ctx *fiber.Ctx) error {
-	user, err := ph.authService.ReadUser()
-	if user.ID != uuid.Nil && err == nil {
-		ph.logger.Info("User already exists, registration disabled", "message", err)
-		return ctx.Redirect("/login?message=Registration is not available for existing users&type=warning")
-	}
+	// user, err := ph.authService.ReadUsers()
+	// if user.ID != uuid.Nil && err == nil {
+	// 	ph.logger.Info("User already exists, registration disabled", "message", err)
+	// 	return ctx.Redirect("/login?message=Registration is not available for existing users&type=warning")
+	// }
 
 	message := ctx.Query("message")
 	typ := ctx.Query("type")
 	if message != "" && typ != "" {
-		return Render(ctx, views_auth.Register(models.Alert{Type: typ, Message: message}))
+		return Render(ctx, views_auth.RegisterDisablePassword(models.Alert{Type: typ, Message: message}))
 	}
 
-	return Render(ctx, views_auth.Register(models.Alert{}))
+	return Render(ctx, views_auth.RegisterDisablePassword(models.Alert{}))
 }
 
 func (ph *pageHandler) ValidateOtp(ctx *fiber.Ctx) error {
@@ -130,6 +130,7 @@ func (ph *pageHandler) Profile(ctx *fiber.Ctx) error {
 
 	message := ctx.Query("message")
 	typ := ctx.Query("type")
+
 	if message != "" && typ != "" {
 		return Render(ctx, views_settings.Profile(models.Alert{Type: typ, Message: message}, user))
 	}
@@ -187,6 +188,10 @@ func (ph *pageHandler) Home(ctx *fiber.Ctx) error {
 	if err != nil {
 		ph.logger.Info("Failed to retrieve user information", "error", err)
 		return ctx.Redirect("/login?message=Unable to retrieve user data. Please try again.&type=warning")
+	}
+
+	if !user.IsAdmin {
+		return Render(ctx, home.Index(models.Alert{}, user, templ.NopComponent,true))
 	}
 
 	if ph.s3Service.IsS3ConfigEmpty() {
