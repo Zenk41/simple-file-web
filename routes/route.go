@@ -12,6 +12,7 @@ type HandlerList struct {
 	AuthHandler       handlers.AuthHandler
 	PublicLinkHandler handlers.PublicLinkHandler
 	JwtConfig         *middlewares.JWTConfig
+	OauthHandler      handlers.OauthHandler
 }
 
 func (hl *HandlerList) RoutesRegister(app *fiber.App) {
@@ -44,9 +45,15 @@ func (hl *HandlerList) RoutesRegister(app *fiber.App) {
 	// home pages
 	app.Get("/", middlewares.IsAuthenticated(hl.JwtConfig, true, true), hl.PageHandler.Home)
 
+	oauth := app.Group("/api/oauth")
+	oauth.Get("/login", hl.OauthHandler.Login)
+	oauth.Get("/register", hl.OauthHandler.Register)
+	oauth.Get("/login/callback", hl.OauthHandler.CallbackLogin)
+	oauth.Get("/register/callback", hl.OauthHandler.CallbackRegister)
+
 	// api
 	api := app.Group("/api")
-	api.Use(middlewares.IsAuthenticated(hl.JwtConfig, true, false))
+	api.Use(middlewares.IsAuthenticatedAsAdmin(hl.JwtConfig, true, false))
 	api.Get("/download", hl.ApiHandler.DownloadObject)
 	api.Get("/presigned-url", hl.ApiHandler.OpenObject)
 	api.Post("/key", hl.ApiHandler.PostFormKeyS3)
@@ -57,6 +64,7 @@ func (hl *HandlerList) RoutesRegister(app *fiber.App) {
 	api.Get("/downloads", hl.ApiHandler.DownloadObjectsAsZip)
 
 	pLink := api.Group("/p")
+	pLink.Use(middlewares.IsAuthenticatedAsAdmin(hl.JwtConfig, true, false))
 	pLink.Put("/:id", hl.PublicLinkHandler.UpdatePublicLink)
 	pLink.Post("/", hl.PublicLinkHandler.CreatePublicLink)
 	pLink.Delete("/:id", hl.PublicLinkHandler.DeletePublicLink)
@@ -65,15 +73,15 @@ func (hl *HandlerList) RoutesRegister(app *fiber.App) {
 
 	// pages bucket
 	bucket := app.Group("/b")
-	bucket.Use(middlewares.IsAuthenticated(hl.JwtConfig, true, true))
+	bucket.Use(middlewares.IsAuthenticatedAsAdmin(hl.JwtConfig, true, false))
 	bucket.Get("/:bucket", hl.PageHandler.BucketRoot)
 	bucket.Get("/:bucket/*", hl.PageHandler.GetPathObject)
 
 	// key page
-	settings := app.Group("/settings", middlewares.IsAuthenticated(hl.JwtConfig, true, true))
-	settings.Get("/key", hl.PageHandler.PostFormKey)
-	settings.Get("/links", hl.PageHandler.PublikLinkList)
-	settings.Get("/profile", hl.PageHandler.Profile)
+	settings := app.Group("/settings")
+	settings.Get("/key", middlewares.IsAuthenticatedAsAdmin(hl.JwtConfig, true, true), hl.PageHandler.PostFormKey)
+	settings.Get("/links", middlewares.IsAuthenticatedAsAdmin(hl.JwtConfig, true, true), hl.PageHandler.PublikLinkList)
+	settings.Get("/profile", middlewares.IsAuthenticated(hl.JwtConfig, true, true), hl.PageHandler.Profile)
 
 	app.Use(hl.PageHandler.NotFound)
 
