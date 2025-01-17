@@ -55,17 +55,8 @@ func (ah *authHandler) Login(ctx *fiber.Ctx) error {
 		})
 	}
 
-	user, err := ah.authService.ReadUser()
+	user, err := ah.authService.ReadUserByEmail(payload.Email)
 	if user.ID == uuid.Nil || err != nil {
-		return ctx.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-			"status":   "error",
-			"message":  "user not found or other error",
-			"error":    err,
-			"redirect": "/login",
-		})
-	}
-
-	if payload.Email != user.Email {
 		return ctx.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 			"status":   "error",
 			"message":  "",
@@ -88,7 +79,7 @@ func (ah *authHandler) Login(ctx *fiber.Ctx) error {
 	authMethod := "password"
 	device, url := GetClientValue(ctx)
 
-	accessToken, refreshToken, err := ah.jwtConfig.GenerateTokens(user.ID.String(), false, user.OtpEnabled, authMethod, device, url)
+	accessToken, refreshToken, err := ah.jwtConfig.GenerateTokens(user.ID.String(), user.IsAdmin, false, user.OtpEnabled, authMethod, device, url)
 	if err != nil {
 		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": "token generation failed",
@@ -211,7 +202,7 @@ func (ah *authHandler) GenerateOtp(ctx *fiber.Ctx) error {
 		})
 	}
 
-	ah.authService.UpdateOTP(models.User{
+	ah.authService.UpdateOTP(user.ID.String(), models.User{
 		OtpSecret:  key.Secret(),
 		OtpAuthUrl: key.URL(),
 	})
@@ -263,7 +254,7 @@ func (ah *authHandler) VerifyOtp(ctx *fiber.Ctx) error {
 	}
 	user.OtpEnabled = true
 	user.OtpVerified = true
-	err = ah.authService.EnablingOTP(user)
+	err = ah.authService.EnablingOTP(user.ID.String(), user)
 	if err != nil {
 		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"status":  "error",
@@ -323,7 +314,7 @@ func (ah *authHandler) ValidateOtp(ctx *fiber.Ctx) error {
 	authMethod := "password-with-otp"
 	device, url := GetClientValue(ctx)
 
-	accessToken, refreshToken, err := ah.jwtConfig.GenerateTokens(user.ID.String(), true, user.OtpEnabled, authMethod, device, url)
+	accessToken, refreshToken, err := ah.jwtConfig.GenerateTokens(user.ID.String(), user.IsAdmin, true, user.OtpEnabled, authMethod, device, url)
 	if err != nil {
 		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": "token generation failed",
