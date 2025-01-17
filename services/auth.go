@@ -176,7 +176,6 @@ func (as *authService) ReadUserWithId(id string) (models.User, error) {
 	for _, user := range as.users {
 		if user.ID == userId {
 			as.logger.Info("success read user")
-			fmt.Println(user)
 			return user, nil
 		}
 	}
