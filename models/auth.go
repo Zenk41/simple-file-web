@@ -65,12 +65,13 @@ type User struct {
 	CreatedAt time.Time
 	UpdatedAt time.Time
 
-	IsAdmin bool
+	IsAdmin bool `json:"is_admin"`
 }
 
 type StateOauth struct {
 	State     string
 	CreatedAt time.Time
+	ExpireAt  time.Time
 }
 
 type OTPInput struct {
