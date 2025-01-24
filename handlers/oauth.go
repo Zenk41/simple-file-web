@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"context"
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/json"
@@ -48,71 +47,49 @@ func (oh *oauthHandler) CallbackRegister(ctx *fiber.Ctx) error {
 	err := oh.StateValid(state)
 	if err != nil {
 		oh.logger.Error("invalid state", "error", err)
-		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"status":  "error",
-			"message": "invalid state",
-		})
+		return ctx.Redirect("/register?message=invalid state&type=error")
 	}
 
 	code := ctx.Query("code")
 	if code == "" {
 		oh.logger.Error("authorization code is missing")
-		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"status":  "error",
-			"message": "authorization code is missing",
-		})
+		return ctx.Redirect("/register?message=authorization code is missing&type=error")
 	}
 
-	token, err := oh.googleConfig.GoogleOauthConfigRegister.Exchange(context.Background(), code)
+	token, err := oh.googleConfig.GoogleOauthConfigRegister.Exchange(ctx.Context(), code)
 	if err != nil {
 		oh.logger.Error("code-token exchange failed", "error", err)
-		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"status":  "error",
-			"message": "code-token exchange failed",
-		})
+		return ctx.Redirect("/register?message=code-token exchange failed&type=error")
 	}
 
 	agent := fiber.Get("https://www.googleapis.com/oauth2/v2/userinfo?access_token=" + token.AccessToken)
 	_, body, errs := agent.Bytes()
 	if len(errs) > 0 {
 		oh.logger.Error("user data fetch failed", "error", errs)
-		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"status":  "error",
-			"message": "user data fetch failed",
-		})
+		return ctx.Redirect("/register?message=user data fetch failed&type=error")
+
 	}
 	var googleUser models.GoogleUserInfo
 	if err := json.Unmarshal(body, &googleUser); err != nil {
 		oh.logger.Error("user data parse failed", "error", err)
-		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"status":  "error",
-			"message": "user data parse failed",
-		})
+		return ctx.Redirect("/register?message=user data parse failed&type=error")
+
 	}
 
 	// check if exist
 	if _, err := oh.authService.OauthUserExists(googleUser); err == nil {
 		oh.logger.Error("user already exists please login", "error", err)
-		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"status":  "error",
-			"message": "user already exists please login",
-		})
+		return ctx.Redirect("/register?message=user already exists please login&type=error")
+
 	}
 
 	// Attempt to create user
 	if err := oh.authService.CreateWithOauth(googleUser); err != nil {
 		oh.logger.Error("failed to register the user", "error", err)
-		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"status":  "error",
-			"message": "failed to register the user",
-		})
+		return ctx.Redirect("/register?message=failed to register the user&type=error")
 	}
 
-	return ctx.Status(fiber.StatusOK).JSON(fiber.Map{
-		"status":  "success",
-		"message": "success register with oauth",
-		"user":    googleUser,
-	})
+	return ctx.Redirect("/login?message=success register with oauth&type=success")
 }
 
 func (oh *oauthHandler) CallbackLogin(ctx *fiber.Ctx) error {
@@ -120,57 +97,38 @@ func (oh *oauthHandler) CallbackLogin(ctx *fiber.Ctx) error {
 	err := oh.StateValid(state)
 	if err != nil {
 		oh.logger.Error("invalid state", "error", err)
-		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"status":  "error",
-			"message": "invalid state",
-		})
+		return ctx.Redirect("/login?message=invalid state&type=error")
 	}
 
 	code := ctx.Query("code")
 	if code == "" {
 		oh.logger.Error("authorization code is missing")
-		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"status":  "error",
-			"message": "authorization code is missing",
-		})
+		return ctx.Redirect("/login?message=authorization code is missing&type=error")
 	}
 
-	token, err := oh.googleConfig.GoogleOauthConfigLogin.Exchange(context.Background(), code)
+	token, err := oh.googleConfig.GoogleOauthConfigLogin.Exchange(ctx.Context(), code)
 	if err != nil {
 		oh.logger.Error("code-token exchange failed", "error", err)
-		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"status":  "error",
-			"message": "code-token exchange failed",
-			"error":   err,
-		})
+		return ctx.Redirect("/login?message=code-token exchange failed&type=error")
 	}
 
 	agent := fiber.Get("https://www.googleapis.com/oauth2/v2/userinfo?access_token=" + token.AccessToken)
 	_, body, errs := agent.Bytes()
 	if len(errs) > 0 {
-		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"status":  "error",
-			"message": "User Data Fetch Failed",
-			"errs":    errs,
-		})
+		oh.logger.Error("user data fetch failed", "error", errs)
+		return ctx.Redirect("/login?message=user data fetch failed&type=error")
 	}
 
 	var googleUser models.GoogleUserInfo
 	if err := json.Unmarshal(body, &googleUser); err != nil {
-		oh.logger.Error("user data fetch failed", "error", errs)
-		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"status":  "error",
-			"message": "user data fetch failed",
-		})
+		oh.logger.Error("failed to parse user data", "error", errs)
+		return ctx.Redirect("/login?message=failed to parse user data&type=error")
 	}
 
 	user, err := oh.authService.OauthUserExists(googleUser)
 	if err != nil {
 		oh.logger.Error("user does not exist please register first", "error", err)
-		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"status":  "error",
-			"message": "user does not exist please register first",
-		})
+		return ctx.Redirect("/login?message=user does not exist please register first&type=error")
 	}
 
 	authMethod := "oauth"
@@ -179,23 +137,12 @@ func (oh *oauthHandler) CallbackLogin(ctx *fiber.Ctx) error {
 	accessToken, refreshToken, err := oh.jwtConfig.GenerateTokens(user.ID.String(), user.IsAdmin, false, user.OtpEnabled, authMethod, device, url)
 	if err != nil {
 		oh.logger.Error("token generation failed", "error", err)
-		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"status": "error",
-			"message": "token generation failed",
-		})
+		return ctx.Redirect("/login?message=token generation failed&type=error")
 	}
 
 	// Set both cookies
 	middlewares.SetAuthCookies(ctx, accessToken, refreshToken, oh.jwtConfig)
-
-	return ctx.Status(fiber.StatusOK).JSON(fiber.Map{
-		"status":        "success",
-		"message":       "success login with oauth email:" + user.Email,
-		"access_token":  accessToken,
-		"refresh_token": refreshToken,
-		"email":         user.Email,
-		"twoFA_enabled": user.OtpEnabled,
-	})
+	return ctx.Redirect("/")
 
 }
 
