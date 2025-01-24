@@ -68,18 +68,20 @@ templ Header(user models.User, isLogin bool) {
 							>
 								<span>Profile</span>
 							</a>
-							<a
-								href="/settings/key"
-								class="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 dark:text-gray-200 dark:hover:bg-gray-700/50"
-							>
-								<span>API Key</span>
-							</a>
-							<a
-								href="/settings/links"
-								class="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 dark:text-gray-200 dark:hover:bg-gray-700/50"
-							>
-								<span>Manage Publik</span>
-							</a>
+							if (user.IsAdmin) {
+								<a
+									href="/settings/key"
+									class="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 dark:text-gray-200 dark:hover:bg-gray-700/50"
+								>
+									<span>API Key</span>
+								</a>
+								<a
+									href="/settings/links"
+									class="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 dark:text-gray-200 dark:hover:bg-gray-700/50"
+								>
+									<span>Manage Publik</span>
+								</a>
+							}
 						</div>
 						<!-- Logout Button -->
 						<div class="border-t border-gray-100 dark:border-gray-700">

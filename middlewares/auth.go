@@ -31,6 +31,7 @@ type JWTClaims struct {
 	URL           string `json:"url"`    // URL associated with token issuance
 	TwoFAEnabled  bool   `json:"twoFA_enabled"`
 	TwoFAVerified bool   `json:"twoFA_verified"`
+	IsAdmin       bool   `json:"is_admin"`
 	jwt.RegisteredClaims
 }
 
@@ -44,15 +45,15 @@ func NewJWTConfig(secretKey string) *JWTConfig {
 }
 
 // GenerateTokens creates both access and refresh tokens
-func (config *JWTConfig) GenerateTokens(userID string, otpFaVerified, otpFaEnabled bool, authMethod, device, url string) (accessToken, refreshToken string, err error) {
+func (config *JWTConfig) GenerateTokens(userID string, isAdmin bool, otpFaVerified, otpFaEnabled bool, authMethod, device, url string) (accessToken, refreshToken string, err error) {
 	// Generate access token
-	accessToken, err = config.generateToken(userID, otpFaVerified, otpFaEnabled, authMethod, "access", device, url, config.AccessTokenDuration)
+	accessToken, err = config.generateToken(userID, isAdmin, otpFaVerified, otpFaEnabled, authMethod, "access", device, url, config.AccessTokenDuration)
 	if err != nil {
 		return "", "", err
 	}
 
 	// Generate refresh token
-	refreshToken, err = config.generateToken(userID, otpFaVerified, otpFaEnabled, authMethod, "refresh", device, url, config.RefreshTokenDuration)
+	refreshToken, err = config.generateToken(userID, isAdmin, otpFaVerified, otpFaEnabled, authMethod, "refresh", device, url, config.RefreshTokenDuration)
 	if err != nil {
 		return "", "", err
 	}
@@ -61,7 +62,7 @@ func (config *JWTConfig) GenerateTokens(userID string, otpFaVerified, otpFaEnabl
 }
 
 // generateToken creates a single token
-func (config *JWTConfig) generateToken(userID string, otpFaVerified, otpFaEnabled bool, authMethod, tokenType, device, url string, duration time.Duration) (string, error) {
+func (config *JWTConfig) generateToken(userID string, isAdmin bool, otpFaVerified, otpFaEnabled bool, authMethod, tokenType, device, url string, duration time.Duration) (string, error) {
 	now := time.Now()
 	claims := JWTClaims{
 		ID:            userID,
@@ -76,6 +77,7 @@ func (config *JWTConfig) generateToken(userID string, otpFaVerified, otpFaEnable
 			IssuedAt:  jwt.NewNumericDate(now),
 			NotBefore: jwt.NewNumericDate(now),
 		},
+		IsAdmin: isAdmin,
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
@@ -177,6 +179,140 @@ func IsAuthenticated(config *JWTConfig, require2FA bool, isPage bool) fiber.Hand
 					"error": "invalid token",
 				})
 			}
+		}
+
+		// Check 2FA if required
+		if require2FA && claims.TwoFAEnabled && !claims.TwoFAVerified {
+			if isPage {
+				return c.Redirect("/login/validateotp?message=need to verify otp if 2fa enabled&type=warning")
+			}
+			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+				"error":   "unauthorized",
+				"message": "need to verify otp if 2fa enabled",
+			})
+		}
+
+		if !isURLMatch(claims.URL, fullURL) {
+			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+				"error":        "URL mismatch",
+				"expected_url": claims.URL,
+				"actual_url":   fullURL,
+			})
+		}
+
+		// Store user info in context
+		c.Locals("user_id", claims.ID)
+		return c.Next()
+	}
+}
+
+func IsAuthenticatedAsAdmin(config *JWTConfig, require2FA bool, isPage bool) fiber.Handler {
+	return func(c *fiber.Ctx) error {
+		var tokenString string
+		var tokenMissing bool
+
+		// Improved device detection - now returns normalized value
+		userAgent := c.Get("User-Agent")
+		device := detectDevice(userAgent)
+
+		// Get and normalize URL - use proper URL handling
+		url := c.BaseURL() // Get base URL first
+		fullURL := url
+
+		// Check for token in cookies or authorization header
+		if cookie := c.Cookies("access_token"); cookie != "" {
+			tokenString = cookie
+		} else {
+			authHeader := c.Get("Authorization")
+			if strings.HasPrefix(authHeader, "Bearer ") {
+				tokenString = strings.TrimPrefix(authHeader, "Bearer ")
+			} else {
+				tokenMissing = true
+			}
+		}
+
+		// Attempt token refresh if missing
+		if tokenMissing {
+			refreshToken := c.Cookies("refresh_token")
+			if refreshToken == "" {
+				if isPage {
+					c.Set("Content-Type", "text/html")
+					return error_handling.Unauthorized().Render(c.Context(), c.Response().BodyWriter())
+				}
+				return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+					"error": "unauthorized",
+				})
+			}
+
+			newAccessToken, err := handleTokenRefresh(refreshToken, config, device, fullURL)
+			if err != nil {
+				if isPage {
+					c.Set("Content-Type", "text/html")
+					return error_handling.InvalidRefreshToken().Render(c.Context(), c.Response().BodyWriter())
+				}
+				return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+					"error": "invalid refresh token",
+				})
+			}
+
+			cookie := createCookie("access_token", newAccessToken, config.AccessTokenDuration)
+			cookie.SameSite = "Strict"
+			cookie.Secure = true
+			c.Cookie(cookie)
+
+			tokenString = newAccessToken
+		}
+
+		// Validate the token and check if it matches device and URL
+		claims, err := validateToken(tokenString, config.SecretKey)
+		if err != nil {
+			if errors.Is(err, ErrTokenExpired) {
+				refreshToken := c.Cookies("refresh_token")
+				if refreshToken == "" {
+					return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+						"error": "token expired",
+					})
+				}
+
+				newAccessToken, err := handleTokenRefresh(refreshToken, config, device, fullURL)
+				if err != nil {
+					if isPage {
+						c.Set("Content-Type", "text/html")
+						return error_handling.InvalidRefreshToken().Render(c.Context(), c.Response().BodyWriter())
+					}
+					return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+						"error": "invalid refresh token",
+					})
+				}
+
+				cookie := createCookie("access_token", newAccessToken, config.AccessTokenDuration)
+				cookie.SameSite = "Strict"
+				cookie.Secure = true
+				c.Cookie(cookie)
+
+				claims, err = validateToken(newAccessToken, config.SecretKey)
+				if err != nil {
+					return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+						"error": "token validation failed",
+					})
+				}
+			} else {
+				return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+					"error": "invalid token",
+				})
+			}
+		}
+
+		// Check if user is admin
+		if !claims.IsAdmin {
+			if isPage {
+				c.Set("Content-Type", "text/html")
+				return error_handling.Unauthorized().Render(c.Context(), c.Response().BodyWriter())
+			}
+			return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+				"error":   "forbidden",
+				"message": "admin access required",
+			})
 		}
 
 		// Check 2FA if required
@@ -312,7 +448,7 @@ func handleTokenRefresh(refreshToken string, config *JWTConfig, device, url stri
 	}
 
 	// Generate a new access token with the original device and URL info
-	return config.generateToken(claims.ID, claims.TwoFAVerified, claims.TwoFAEnabled, claims.AMR, "access", device, url, config.AccessTokenDuration)
+	return config.generateToken(claims.ID, claims.IsAdmin, claims.TwoFAVerified, claims.TwoFAEnabled, claims.AMR, "access", device, url, config.AccessTokenDuration)
 }
 
 // validateToken verifies and parses a JWT token
