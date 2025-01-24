@@ -102,7 +102,7 @@ func main() {
 
 	app.Use(middlewares.StructuredLogger())
 
-	app.Static("/public/globals.css", "./public/globals.css")
+	app.Static("/public/globals.css", "/public/globals.css")
 	app.Static("/public/flowbite.min.js", "/app/node_modules/flowbite/dist/flowbite.min.js")
 	app.Static("/public/alpine.js", "/app/node_modules/alpinejs/dist/cdn.min.js")
 	app.Static("/public/qrcode.js", "/app/node_modules/qrcode-generator/qrcode.js", fiber.Static{})
