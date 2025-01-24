@@ -19,8 +19,8 @@ templ Login(alert models.Alert) {
         const response = JSON.parse(responseText);
         if (response.status === 'success') {
           window.location.href = '/?message=' + encodeURIComponent(response.message) + '&type=success';
-        } else if (response.error === 'user exist') {
-          window.location.href = '/login?message=' + encodeURIComponent('User already exists, please login') + '&type=warning';
+        } else if (response.error === 'user not exists') {
+          window.location.href = '/login?message=' + encodeURIComponent('User not exists, please register') + '&type=warning';
         } else {
           this.submitError = response.message || 'Login failed';
           window.dispatchEvent(new CustomEvent('notify', { 
@@ -380,79 +380,11 @@ templ LoginDisablePassword(alert models.Alert) {
 			<div
 				class="max-w-sm p-5 mx-auto bg-white border border-gray-200 rounded-lg shadow-md"
 				x-data="{
-					submitError: '',
-					formDisabled: true, // Added flag to control form state
-					processOAuthResponse(responseText) {
-      try {
-        const response = JSON.parse(responseText);
-        if (response.status === 'success') {
-          window.location.href = '/?message=' + encodeURIComponent(response.message) + '&type=success';
-        } else if (response.error === 'user exist') {
-          window.location.href = '/login?message=' + encodeURIComponent('User already exists, please login') + '&type=warning';
-        } else {
-          this.submitError = response.message || 'Login failed';
-          window.dispatchEvent(new CustomEvent('notify', { 
-            detail: { 
-              type: 'error',
-              message: this.submitError
+            initGoogleLogin() {
+                this.isLoading = true;
+                window.location.href = '/api/oauth/login'; // Redirect to the OAuth endpoint
             }
-          }));
-        }
-      } catch (error) {
-        console.error('Error parsing response:', error);
-        this.submitError = 'Failed to process login response';
-        window.dispatchEvent(new CustomEvent('notify', { 
-          detail: { 
-            type: 'error',
-            message: this.submitError
-          }
-        }));
-      }
-    },
-    checkPopupStatus(popup) {
-      const checkTimer = setInterval(() => {
-        if (popup.closed) {
-          clearInterval(checkTimer);
-          return;
-        }
-
-        try {
-          const responseText = popup.document.body.innerText;
-          if (responseText && responseText.includes('{')) {
-            clearInterval(checkTimer);
-            this.processOAuthResponse(responseText);
-            popup.close();
-          }
-        } catch (error) {
-          console.log('Waiting for auth completion...');
-        }
-      }, 500);
-    },
-    initGoogleLogin() {
-      const width = 500;
-      const height = 600;
-      const left = (window.screen.width / 2) - (width / 2);
-      const top = (window.screen.height / 2) - (height / 2);
-      
-      const popup = window.open(
-        '/api/oauth/login',
-        'Google Login',
-        `width=${width},height=${height},left=${left},top=${top}`
-      );
-
-      if (popup) {
-        this.checkPopupStatus(popup);
-      } else {
-        this.submitError = 'Please enable popups for this site';
-        window.dispatchEvent(new CustomEvent('notify', { 
-          detail: { 
-            type: 'error',
-            message: this.submitError
-          }
-        }));
-      }
-    }
-  }"
+        }"
 			>
 				<h3 class="text-lg font-bold text-center">Login Form</h3>
 				<!-- Google OAuth Button -->
