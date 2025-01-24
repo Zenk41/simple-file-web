@@ -103,9 +103,9 @@ func main() {
 	app.Use(middlewares.StructuredLogger())
 
 	app.Static("/public", "./public")
-	app.Static("/public/flowbite.min.js", "./node_modules/flowbite/dist/flowbite.min.js")
-	app.Static("/public/alpine.js", "./node_modules/alpinejs/dist/cdn.min.js")
-	app.Static("/public/qrcode.js", "./node_modules/qrcode-generator/qrcode.js", fiber.Static{})
+	app.Static("/public/flowbite.min.js", "/app/node_modules/flowbite/dist/flowbite.min.js")
+	app.Static("/public/alpine.js", "/app/node_modules/alpinejs/dist/cdn.min.js")
+	app.Static("/public/qrcode.js", "/app/node_modules/qrcode-generator/qrcode.js", fiber.Static{})
 
 	routeInit := routes.HandlerList{
 		PageHandler:       pageHandler,

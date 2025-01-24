@@ -4,7 +4,7 @@ A lightweight file management web application built with Go Fiber and Alpine.js,
 
 ## Features
 
-- **Secure Admin Login**: Protects login with TOTP-based 2FA, compatible with authenticator apps (e.g., Google Authenticator).
+- **Secure Login**: Protects login with TOTP-based 2FA, compatible with authenticator apps (e.g., Google Authenticator).
 - **File Upload**: Enables uploading files to S3-compatible storage with real-time feedback.
 - **File Listing**: Displays a responsive list of uploaded files.
 - **Delete Files**: Seamlessly removes files from storage without page reloads.
@@ -17,7 +17,8 @@ A lightweight file management web application built with Go Fiber and Alpine.js,
 
 - **[Go Fiber](https://gofiber.io/)**: Fast, flexible web server framework in Go.
 - **[Templ](https://github.com/a-h/templ)**: Type-safe HTML templating for Go.
-- **TOTP for 2FA**: Implements time-based one-time passwords (TOTP) for secure admin login.
+- **TOTP for 2FA**: Implements time-based one-time passwords (TOTP) for secure login.
+- **OAuth2 (Google)**: Implements Google OAuth2 for authentication.
 
 ### Frontend
 
@@ -33,7 +34,8 @@ A lightweight file management web application built with Go Fiber and Alpine.js,
 
 1. **Go**: Install [Go](https://golang.org/dl/).
 2. **S3-Compatible Storage**: Ensure access to an S3-compatible storage provider.
-3. **Authenticator App**: Use an authenticator app (e.g., Google Authenticator) to set up TOTP for the admin login.
+3. **Authenticator App**: Use an authenticator app (e.g., Google Authenticator) to set up TOTP for the login.
+4. **Google OAuth Setup**: Set up a Google OAuth 2.0 project to obtain your `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` credentials.
 
 ### Environment Variables
 
@@ -44,7 +46,7 @@ In the root directory, set up a `.env` file (or export variables in your shell) 
 ```powershell
 $env:APP_ENV="development"
 $env:PORT="3000"
-$env:Alloworigin="*"  # Allowed origins, set to "*" for any origin
+$env:ORIGIN_URL="http://localhost:3000"  # Allowed origins
 $env:DOWNLOAD_URL_EXPIRATION="3600"  # URL expiration time in seconds
 $env:GOOGLE_CLIENT_ID=
 $env:GOOGLE_CLIENT_SECRET=
@@ -55,7 +57,7 @@ $env:GOOGLE_CLIENT_SECRET=
 ```bash
 export APP_ENV="development"
 export PORT=3000
-export Alloworigin=*
+export ORIGIN_URL="http://localhost:3000"
 export DOWNLOAD_URL_EXPIRATION=3600
 export GOOGLE_CLIENT_ID=
 export GOOGLE_CLIENT_SECRET=
