@@ -45,6 +45,7 @@ func main() {
 		c.Set("X-Frame-Options", "DENY")
 		c.Set("X-Content-Type-Options", "nosniff")
 		c.Set("X-XSS-Protection", "1; mode=block")
+		c.Set("Cross-Origin-Opener-Policy", "same-origin")
 		return c.Next()
 	})
 
@@ -80,7 +81,12 @@ func main() {
 		logger.Info("success create admin")
 	}
 
-	config.GoogleConfig(v)
+	config.GoogleConfig(
+		v.GetString("GOOGLE_CLIENT_ID"),
+		v.GetString("GOOGLE_CLIENT_SECRET"),
+		fmt.Sprintf(`%s/api/oauth/register/callback`, getFirstURL(originURL)),
+		fmt.Sprintf(`%s/api/oauth/login/callback`, getFirstURL(originURL)),
+	)
 
 	jwtConfig := middlewares.NewJWTConfig(v.GetString("SECRET_KEY_JWT"))
 
