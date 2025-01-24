@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"log/slog"
 	"strconv"
 	"strings"
 	"time"
@@ -12,9 +13,11 @@ import (
 	"github.com/Zenk41/simple-file-web/config"
 	"github.com/Zenk41/simple-file-web/handlers"
 	"github.com/Zenk41/simple-file-web/middlewares"
+	"github.com/Zenk41/simple-file-web/models"
 	"github.com/Zenk41/simple-file-web/routes"
 	"github.com/Zenk41/simple-file-web/services"
 	"github.com/Zenk41/simple-file-web/validation"
+	"github.com/robfig/cron/v3"
 
 	"github.com/gofiber/fiber/v2"
 )
@@ -42,6 +45,7 @@ func main() {
 		c.Set("X-Frame-Options", "DENY")
 		c.Set("X-Content-Type-Options", "nosniff")
 		c.Set("X-XSS-Protection", "1; mode=block")
+		c.Set("Cross-Origin-Opener-Policy", "same-origin")
 		return c.Next()
 	})
 
@@ -51,6 +55,7 @@ func main() {
 	}
 
 	logger := middlewares.ConfigureLogger(v.GetString("APP_ENV"))
+
 	authService := services.NewAuthService(logger, "db_user.json")
 	publikLinkService := services.NewDataPublic(logger, "db_publik_link.json")
 	s3Service, err := services.NewS3Service(time.Duration(exp)*time.Second, logger)
@@ -58,6 +63,30 @@ func main() {
 	if err != nil {
 		fmt.Println(err)
 	}
+
+	// setup admin user
+	if u, _ := authService.ReadUsers(); len(u) < 1 {
+		err = authService.CreateAdmin(
+			models.RegisterPayload{
+				Username: v.GetString("USERNAME_ADMIN"),
+				Email:    v.GetString("EMAIL_ADMIN"),
+				Password: v.GetString("PASSWORD_ADMIN"),
+			},
+		)
+	}
+
+	if err != nil {
+		log.Fatalf("Failed to create admin please input the require env for admin, err: %v", err)
+	} else {
+		logger.Info("success create admin")
+	}
+
+	config.GoogleConfig(
+		v.GetString("GOOGLE_CLIENT_ID"),
+		v.GetString("GOOGLE_CLIENT_SECRET"),
+		fmt.Sprintf(`%s/api/oauth/register/callback`, getFirstURL(originURL)),
+		fmt.Sprintf(`%s/api/oauth/login/callback`, getFirstURL(originURL)),
+	)
 
 	jwtConfig := middlewares.NewJWTConfig(v.GetString("SECRET_KEY_JWT"))
 
@@ -69,13 +98,14 @@ func main() {
 	pageHandler := handlers.NewPageHandler(s3Service, authService, logger, publikLinkService, jwtConfig)
 	apiHandler := handlers.NewApiHandler(s3Service, logger, s3Validation)
 	publicLinkHandler := handlers.NewPublicLinkHandler(publikLinkService, authService, s3Service, logger, publicLinkValidation)
+	oauthHandler := handlers.NewOauthHandler(logger, authService, jwtConfig, config.AppConfig)
 
 	app.Use(middlewares.StructuredLogger())
 
-	app.Static("/public", "/public")
+	app.Static("/public", "./public")
 	app.Static("/public/flowbite.min.js", "/app/node_modules/flowbite/dist/flowbite.min.js")
 	app.Static("/public/alpine.js", "/app/node_modules/alpinejs/dist/cdn.min.js")
-	app.Static("/public/qrcode.js", "/app/node_modules/qrcode-generator/qrcode.js")
+	app.Static("/public/qrcode.js", "/app/node_modules/qrcode-generator/qrcode.js", fiber.Static{})
 
 	routeInit := routes.HandlerList{
 		PageHandler:       pageHandler,
@@ -83,13 +113,30 @@ func main() {
 		AuthHandler:       authHandler,
 		PublicLinkHandler: publicLinkHandler,
 		JwtConfig:         jwtConfig,
+		OauthHandler:      oauthHandler,
 	}
+
+	c := cron.New()
+
+	// Schedule a job to run every midnight
+	_, err = c.AddFunc("0 0 * * *", func() {
+		num := oauthHandler.DeleteExpireState()
+		slog.Info("Cron State", slog.Int("Deleted state", num))
+	})
+	if err != nil {
+		fmt.Println("Error scheduling the job:", err)
+		return
+	}
+
+	// Start the cron scheduler in a goroutine
+	go func() {
+		c.Start()
+	}()
 
 	// Register routes
 	routeInit.RoutesRegister(app)
 
 	// Start the Fiber app on port 3000 and handle potential errors
-
 	if err := app.Listen(":" + port); err != nil {
 		log.Fatalf("Failed to start server: %v", err)
 	}
