@@ -529,80 +529,11 @@ templ RegisterDisablePassword(alert models.Alert) {
 			<div
 				class="max-w-sm p-5 mx-auto bg-white border border-gray-200 rounded-lg shadow-md"
 				x-data="{
-    submitError: '',
-    processOAuthResponse(responseText) {
-      try {
-        const response = JSON.parse(responseText);
-        if (response.status === 'success') {
-          window.location.href = '/login?message=' + encodeURIComponent(response.message) + '&type=success';
-        } else if (response.error === 'user exist') {
-          window.location.href = '/login?message=' + encodeURIComponent('User already exists, please login') + '&type=warning';
-        } else {
-          this.submitError = response.message || 'Registration failed';
-          window.dispatchEvent(new CustomEvent('notify', { 
-            detail: { 
-              type: 'error',
-              message: this.submitError
+            initGoogleSignup() {
+                this.isLoading = true;
+                window.location.href = '/api/oauth/register'; // Redirect to the OAuth endpoint
             }
-          }));
-        }
-      } catch (error) {
-        console.error('Error parsing response:', error);
-        this.submitError = 'Failed to process registration response';
-        window.dispatchEvent(new CustomEvent('notify', { 
-          detail: { 
-            type: 'error',
-            message: this.submitError
-          }
-        }));
-      }
-    },
-    checkPopupStatus(popup) {
-      const checkTimer = setInterval(() => {
-        if (popup.closed) {
-          clearInterval(checkTimer);
-          return;
-        }
-
-        try {
-          // Check if we have response content
-          const responseText = popup.document.body.innerText;
-          if (responseText && responseText.includes('{')) {
-            clearInterval(checkTimer);
-            this.processOAuthResponse(responseText);
-            popup.close();
-          }
-        } catch (error) {
-          // Cross-origin errors are expected while OAuth is in progress
-          console.log('Waiting for auth completion...');
-        }
-      }, 500);
-    },
-    initGoogleSignup() {
-      const width = 500;
-      const height = 600;
-      const left = (window.screen.width / 2) - (width / 2);
-      const top = (window.screen.height / 2) - (height / 2);
-      
-      const popup = window.open(
-        '/api/oauth/register',
-        'Google Sign Up',
-        `width=${width},height=${height},left=${left},top=${top}`
-      );
-
-      if (popup) {
-        this.checkPopupStatus(popup);
-      } else {
-        this.submitError = 'Please enable popups for this site';
-        window.dispatchEvent(new CustomEvent('notify', { 
-          detail: { 
-            type: 'error',
-            message: this.submitError
-          }
-        }));
-      }
-    }
-  }"
+        }"
 			>
 				<h3 class="font-bold text-center text-md">Register Form</h3>
 				<!-- Google OAuth Button -->
@@ -639,188 +570,59 @@ templ RegisterDisablePassword(alert models.Alert) {
 				<div class="p-3 mb-4 text-sm rounded-lg text-amber-700 bg-amber-100">
 					Email/Password Sign Up is temporarily disabled. Please use Google login.
 				</div>
-				<form
-					class="space-y-4 opacity-50"
-				>
+				<form class="space-y-4">
 					<!-- Username Field -->
 					<div class="mb-6">
 						<label for="username" class="block mb-2 text-sm font-medium text-gray-900">
 							Username
 						</label>
-						<div class="relative">
-							<input
-								type="text"
-								id="username"
-								maxlength="10"
-								x-model="fields.username.value"
-								@input="fields.username.validate()"
-								@blur="fields.username.validate()"
-								class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-black focus:border-black block w-full p-2.5 pr-10"
-								placeholder="dadang"
-								disabled
-							/>
-							<div class="absolute transform -translate-y-1/2 right-2 top-1/2">
-								<div
-									x-show="fields.username.loading"
-									class="w-4 h-4 border-2 border-black rounded-full animate-spin border-t-transparent"
-								></div>
-								<span
-									x-show="!fields.username.loading && fields.username.valid"
-									class="text-xl text-green-500"
-								>✅</span>
-								<span
-									x-show="!fields.username.loading && fields.username.value && !fields.username.valid"
-									class="text-xl text-red-500"
-								>❌</span>
-							</div>
-						</div>
-						<div
-							x-show="fields.username.error"
-							x-text="fields.username.error"
-							class="mt-2 text-sm text-red-600"
-						></div>
+						<input
+							type="text"
+							id="username"
+							class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg block w-full p-2.5"
+							placeholder="dadang"
+							disabled
+						/>
 					</div>
 					<!-- Email Field -->
 					<div class="mb-6">
 						<label for="email" class="block mb-2 text-sm font-medium text-gray-900">
 							Email
 						</label>
-						<div class="relative">
-							<input
-								type="email"
-								id="email"
-								x-model="fields.email.value"
-								@input="fields.email.validate()"
-								@blur="fields.email.validate()"
-								class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-black focus:border-black block w-full pl-2.5 pr-28 p-2.5"
-								placeholder="example@domain.com"
-								disabled
-							/>
-							<div class="absolute transform -translate-y-1/2 right-2 top-1/2">
-								<div
-									x-show="fields.email.loading"
-									class="w-4 h-4 border-2 border-black rounded-full animate-spin border-t-transparent"
-								></div>
-								<span
-									x-show="!fields.email.loading && fields.email.valid"
-									class="text-xl text-green-500"
-								>✅</span>
-								<span
-									x-show="!fields.email.loading && fields.email.value && !fields.email.valid"
-									class="text-xl text-red-500"
-								>❌</span>
-							</div>
-						</div>
-						<div
-							x-show="fields.email.error"
-							x-text="fields.email.error"
-							class="mt-2 text-sm text-red-600"
-						></div>
+						<input
+							type="email"
+							id="email"
+							class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg block w-full p-2.5"
+							placeholder="example@domain.com"
+							disabled
+						/>
 					</div>
 					<!-- Password Field -->
 					<div class="mb-6">
 						<label for="password" class="block mb-2 text-sm font-medium text-gray-900">
 							Password
 						</label>
-						<div class="relative">
-							<input
-								:type="fields.password.show ? 'text' : 'password'"
-								id="password"
-								maxlength="10"
-								x-model="fields.password.value"
-								@input="fields.password.validate()"
-								@blur="fields.password.validate()"
-								class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-black focus:border-black block w-full pl-2.5 pr-28 p-2.5"
-								placeholder="•••••••••"
-								disabled
-							/>
-							<div class="absolute flex items-center -translate-y-1/2 right-12 top-1/2">
-								<div
-									x-show="fields.password.loading"
-									class="w-4 h-4 border-2 border-black rounded-full animate-spin border-t-transparent"
-								></div>
-								<span
-									x-show="!fields.password.loading && fields.password.valid"
-									class="text-xl text-green-500"
-								>✅</span>
-								<span
-									x-show="!fields.password.loading && fields.password.value && !fields.password.valid"
-									class="text-xl text-red-500"
-								>❌</span>
-							</div>
-							<button
-								type="button"
-								@click="fields.password.show = !fields.password.show"
-								class="absolute p-1 -translate-y-1/2 rounded-full right-2 top-1/2 hover:bg-gray-100"
-							>
-								<span x-text="fields.password.show ? '🙈' : '👁️'" class="text-lg"></span>
-							</button>
-						</div>
-						<div
-							x-show="fields.password.error"
-							x-text="fields.password.error"
-							class="mt-2 text-sm text-red-600"
-						></div>
+						<input
+							type="password"
+							id="password"
+							class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg block w-full p-2.5"
+							placeholder="•••••••••"
+							disabled
+						/>
 					</div>
 					<!-- Confirm Password Field -->
 					<div class="mb-6">
 						<label for="confirmPassword" class="block mb-2 text-sm font-medium text-gray-900">
 							Confirm Password
 						</label>
-						<div class="relative">
-							<input
-								:type="fields.confirmPassword.show ? 'text' : 'password'"
-								id="confirmPassword"
-								maxlength="10"
-								x-model="fields.confirmPassword.value"
-								@input="fields.confirmPassword.validate()"
-								@blur="fields.confirmPassword.validate()"
-								class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-black focus:border-black block w-full p-2.5 pr-10"
-								placeholder="•••••••••"
-								disabled
-							/>
-							<button
-								type="button"
-								@click="fields.confirmPassword.show = !fields.confirmPassword.show"
-								class="absolute p-1 -translate-y-1/2 rounded-full right-2 top-1/2 hover:bg-gray-100"
-							>
-								<span x-text="fields.confirmPassword.show ? '🙈' : '👁️'" class="text-lg"></span>
-							</button>
-							<div class="absolute flex items-center -translate-y-1/2 right-12 top-1/2">
-								<div
-									x-show="fields.confirmPassword.loading"
-									class="w-4 h-4 border-2 border-black rounded-full animate-spin border-t-transparent"
-								></div>
-								<span
-									x-show="!fields.confirmPassword.loading && fields.confirmPassword.valid"
-									class="text-xl text-green-500"
-								>✅</span>
-								<span
-									x-show="!fields.confirmPassword.loading && fields.confirmPassword.value && !fields.confirmPassword.valid"
-									class="text-xl text-red-500"
-								>❌</span>
-							</div>
-						</div>
-						<div
-							x-show="fields.confirmPassword.error"
-							x-text="fields.confirmPassword.error"
-							class="mt-2 text-sm text-red-600"
-						></div>
+						<input
+							type="password"
+							id="confirmPassword"
+							class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg block w-full p-2.5"
+							placeholder="•••••••••"
+							disabled
+						/>
 					</div>
-					<!-- Submit Error Message -->
-					<div
-						x-show="submitError"
-						x-text="submitError"
-						class="p-3 mb-4 text-sm text-red-700 bg-red-100 rounded-lg"
-					></div>
-					<!-- Submit Button -->
-					<button
-						type="submit"
-						disabled
-						class="w-full text-white bg-black hover:bg-gray-800 focus:ring-4 focus:outline-none focus:ring-gray-500 font-medium rounded-lg text-sm px-5 py-2.5"
-					>
-						Register
-					</button>
 				</form>
 			</div>
 		</main>
