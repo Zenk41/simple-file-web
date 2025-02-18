@@ -144,17 +144,8 @@ func (ph *pageHandler) NotFound(ctx *fiber.Ctx) error {
 
 func (ph *pageHandler) PostFormKey(ctx *fiber.Ctx) error {
 
-	claim, err := ph.jwtConfig.DecodeToken(ctx.Cookies("access_token"))
-	if err != nil {
-		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"status":  "error",
-			"message": "failed to decode token",
-			"error":   err.Error(),
-		})
-	}
-
 	// Retrieve user by ID from the token claims
-	user, err := ph.authService.ReadUserWithId(claim.ID)
+	user, err := ph.authService.ReadUserWithId(ctx.Get("user_id"))
 	if err != nil {
 		ph.logger.Info("Failed to retrieve user information", "error", err)
 		return ctx.Redirect("/login?message=Unable to retrieve user data. Please try again.&type=warning")
@@ -173,25 +164,15 @@ func (ph *pageHandler) PostFormKey(ctx *fiber.Ctx) error {
 }
 
 func (ph *pageHandler) Home(ctx *fiber.Ctx) error {
-
-	claim, err := ph.jwtConfig.DecodeToken(ctx.Cookies("access_token"))
-	if err != nil {
-		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"status":  "error",
-			"message": "failed to decode token",
-			"error":   err.Error(),
-		})
-	}
-
 	// Retrieve user by ID from the token claims
-	user, err := ph.authService.ReadUserWithId(claim.ID)
+	user, err := ph.authService.ReadUserWithId(ctx.Get("user_id"))
 	if err != nil {
 		ph.logger.Info("Failed to retrieve user information", "error", err)
 		return ctx.Redirect("/login?message=Unable to retrieve user data. Please try again.&type=warning")
 	}
 
 	if !user.IsAdmin {
-		return Render(ctx, home.Index(models.Alert{}, user, templ.NopComponent,true))
+		return Render(ctx, home.Index(models.Alert{}, user, templ.NopComponent, true))
 	}
 
 	if ph.s3Service.IsS3ConfigEmpty() {
@@ -217,18 +198,8 @@ func (ph *pageHandler) Home(ctx *fiber.Ctx) error {
 }
 
 func (ph *pageHandler) BucketRoot(ctx *fiber.Ctx) error {
-
-	claim, err := ph.jwtConfig.DecodeToken(ctx.Cookies("access_token"))
-	if err != nil {
-		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"status":  "error",
-			"message": "failed to decode token",
-			"error":   err.Error(),
-		})
-	}
-
 	// Retrieve user by ID from the token claims
-	user, err := ph.authService.ReadUserWithId(claim.ID)
+	user, err := ph.authService.ReadUserWithId(ctx.Get("user_id"))
 	if err != nil {
 		ph.logger.Info("Failed to retrieve user information", "error", err)
 		return ctx.Redirect("/login?message=Unable to retrieve user data. Please try again.&type=warning")
@@ -259,17 +230,8 @@ func (ph *pageHandler) BucketRoot(ctx *fiber.Ctx) error {
 }
 
 func (ph *pageHandler) GetPathObject(ctx *fiber.Ctx) error {
-	claim, err := ph.jwtConfig.DecodeToken(ctx.Cookies("access_token"))
-	if err != nil {
-		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"status":  "error",
-			"message": "failed to decode token",
-			"error":   err.Error(),
-		})
-	}
-
 	// Retrieve user by ID from the token claims
-	user, err := ph.authService.ReadUserWithId(claim.ID)
+	user, err := ph.authService.ReadUserWithId(ctx.Get("user_id"))
 	if err != nil {
 		ph.logger.Info("Failed to retrieve user information", "error", err)
 		return ctx.Redirect("/login?message=Unable to retrieve user data. Please try again.&type=warning")
@@ -376,17 +338,8 @@ func (ph *pageHandler) PublikLink(ctx *fiber.Ctx) error {
 }
 
 func (ph *pageHandler) PublikLinkList(ctx *fiber.Ctx) error {
-	claim, err := ph.jwtConfig.DecodeToken(ctx.Cookies("access_token"))
-	if err != nil {
-		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"status":  "error",
-			"message": "failed to decode token",
-			"error":   err.Error(),
-		})
-	}
-
 	// Retrieve user by ID from the token claims
-	user, err := ph.authService.ReadUserWithId(claim.ID)
+	user, err := ph.authService.ReadUserWithId(ctx.Get("user_id"))
 	if err != nil {
 		ph.logger.Info("Failed to retrieve user information", "error", err)
 		return ctx.Redirect("/login?message=Unable to retrieve user data. Please try again.&type=warning")
