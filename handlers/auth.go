@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"log/slog"
+	"strconv"
 
 	"github.com/Zenk41/simple-file-web/middlewares"
 	"github.com/Zenk41/simple-file-web/models"
@@ -148,21 +149,13 @@ func (ah *authHandler) Logout(ctx *fiber.Ctx) error {
 }
 
 func (ah *authHandler) GenerateOtp(ctx *fiber.Ctx) error {
+	twoFAVerified, err := strconv.ParseBool(ctx.Get("2fa_verified"))
 
-	claim, err := ah.jwtConfig.DecodeToken(ctx.Cookies("access_token"))
-	if err != nil {
-		ah.logger.Error("failed to decode token", "error", err)
-		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"status":  "error",
-			"message": "failed to decode token",
-		})
-	}
-
-	if claim.TwoFAVerified {
+	if twoFAVerified {
 		return ctx.Redirect("/")
 	}
 
-	user, err := ah.authService.ReadUserWithId(claim.ID)
+	user, err := ah.authService.ReadUserWithId(ctx.Get("user_id"))
 	if err != nil {
 		ah.logger.Error("cannot read user", "error", err)
 		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
