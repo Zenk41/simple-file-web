@@ -202,6 +202,8 @@ func IsAuthenticated(config *JWTConfig, require2FA bool, isPage bool) fiber.Hand
 
 		// Store user info in context
 		c.Locals("user_id", claims.ID)
+		// Store 2fa
+		c.Locals("2fa_verified", claims.TwoFAVerified)
 		return c.Next()
 	}
 }
