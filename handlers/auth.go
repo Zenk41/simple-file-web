@@ -149,13 +149,13 @@ func (ah *authHandler) Logout(ctx *fiber.Ctx) error {
 }
 
 func (ah *authHandler) GenerateOtp(ctx *fiber.Ctx) error {
-	twoFAVerified, err := strconv.ParseBool(ctx.Get("2fa_verified"))
+	twoFAVerified, err := strconv.ParseBool(ctx.Locals("2fa_verified").(string))
 
 	if twoFAVerified {
 		return ctx.Redirect("/")
 	}
 
-	user, err := ah.authService.ReadUserWithId(ctx.Get("user_id"))
+	user, err := ah.authService.ReadUserWithId(ctx.Locals("user_id").(string))
 	if err != nil {
 		ah.logger.Error("cannot read user", "error", err)
 		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{

@@ -145,7 +145,7 @@ func (ph *pageHandler) NotFound(ctx *fiber.Ctx) error {
 func (ph *pageHandler) PostFormKey(ctx *fiber.Ctx) error {
 
 	// Retrieve user by ID from the token claims
-	user, err := ph.authService.ReadUserWithId(ctx.Get("user_id"))
+	user, err := ph.authService.ReadUserWithId(ctx.Locals("user_id").(string))
 	if err != nil {
 		ph.logger.Info("Failed to retrieve user information", "error", err)
 		return ctx.Redirect("/login?message=Unable to retrieve user data. Please try again.&type=warning")
@@ -165,7 +165,7 @@ func (ph *pageHandler) PostFormKey(ctx *fiber.Ctx) error {
 
 func (ph *pageHandler) Home(ctx *fiber.Ctx) error {
 	// Retrieve user by ID from the token claims
-	user, err := ph.authService.ReadUserWithId(ctx.Get("user_id"))
+	user, err := ph.authService.ReadUserWithId(ctx.Locals("user_id").(string))
 	if err != nil {
 		ph.logger.Info("Failed to retrieve user information", "error", err)
 		return ctx.Redirect("/login?message=Unable to retrieve user data. Please try again.&type=warning")
@@ -199,7 +199,7 @@ func (ph *pageHandler) Home(ctx *fiber.Ctx) error {
 
 func (ph *pageHandler) BucketRoot(ctx *fiber.Ctx) error {
 	// Retrieve user by ID from the token claims
-	user, err := ph.authService.ReadUserWithId(ctx.Get("user_id"))
+	user, err := ph.authService.ReadUserWithId(ctx.Locals("user_id").(string))
 	if err != nil {
 		ph.logger.Info("Failed to retrieve user information", "error", err)
 		return ctx.Redirect("/login?message=Unable to retrieve user data. Please try again.&type=warning")
@@ -231,7 +231,7 @@ func (ph *pageHandler) BucketRoot(ctx *fiber.Ctx) error {
 
 func (ph *pageHandler) GetPathObject(ctx *fiber.Ctx) error {
 	// Retrieve user by ID from the token claims
-	user, err := ph.authService.ReadUserWithId(ctx.Get("user_id"))
+	user, err := ph.authService.ReadUserWithId(ctx.Locals("user_id").(string))
 	if err != nil {
 		ph.logger.Info("Failed to retrieve user information", "error", err)
 		return ctx.Redirect("/login?message=Unable to retrieve user data. Please try again.&type=warning")
@@ -339,7 +339,7 @@ func (ph *pageHandler) PublikLink(ctx *fiber.Ctx) error {
 
 func (ph *pageHandler) PublikLinkList(ctx *fiber.Ctx) error {
 	// Retrieve user by ID from the token claims
-	user, err := ph.authService.ReadUserWithId(ctx.Get("user_id"))
+	user, err := ph.authService.ReadUserWithId(ctx.Locals("user_id").(string))
 	if err != nil {
 		ph.logger.Info("Failed to retrieve user information", "error", err)
 		return ctx.Redirect("/login?message=Unable to retrieve user data. Please try again.&type=warning")
