@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"log/slog"
-	"strconv"
 
 	"github.com/Zenk41/simple-file-web/middlewares"
 	"github.com/Zenk41/simple-file-web/models"
@@ -149,7 +148,7 @@ func (ah *authHandler) Logout(ctx *fiber.Ctx) error {
 }
 
 func (ah *authHandler) GenerateOtp(ctx *fiber.Ctx) error {
-	twoFAVerified, err := strconv.ParseBool(ctx.Locals("2fa_verified").(string))
+	twoFAVerified := ctx.Locals("2fa_verified").(bool)
 
 	if twoFAVerified {
 		return ctx.Redirect("/")
